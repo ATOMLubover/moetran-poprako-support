@@ -1,6 +1,6 @@
 use axum::{
     Extension,
-    extract::{Path, State},
+    extract::{Query, State},
 };
 
 use crate::{
@@ -13,9 +13,9 @@ use crate::{
 pub async fn get_member_info(
     State(state): State<AppState>,
     Extension(claims): Extension<Claims>,
-    Path(member_id): Path<String>,
+    Query(team_id): Query<String>,
 ) -> HttpResult<MemberInfoReply> {
-    service::get_member_info(claims.sub, member_id, state.repo())
+    service::get_member_info(claims.sub, team_id, state.repo())
         .await
         .into()
 }

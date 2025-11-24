@@ -1,6 +1,7 @@
 use std::net::SocketAddrV4;
 
 use axum::Router;
+use axum::middleware::from_fn_with_state;
 use axum::routing::get;
 use axum::routing::post;
 use tokio::net::TcpListener;
@@ -13,6 +14,7 @@ mod result;
 mod user;
 
 use crate::http::member::get_member_info;
+use crate::http::middleware::auth_middleware;
 use crate::http::user::get_user_info;
 use crate::http::user::sync_user;
 use crate::state::AppState;
@@ -22,18 +24,18 @@ async fn init_router(app_state: &AppState) -> anyhow::Result<Router> {
         .route("/check", get(health::health_check))
         .route("/app_state", get(health::check_app_state));
 
-    let user_router = Router::new()
-        .route("/sync", post(sync_user))
-        .route("/{user_id}", get(get_user_info));
+    let user_router = Router::new().route("/{user_id}", get(get_user_info));
 
     let member_router = Router::new().route("/{member_id}", get(get_member_info));
 
     let api_router = Router::new()
         .nest("/health", health_router)
         .nest("/user", user_router)
-        .nest("/member", member_router);
+        .nest("/member", member_router)
+        .route_layer(from_fn_with_state(app_state.clone(), auth_middleware));
 
     let router = Router::new()
+        .route("/api/v1/sync", post(sync_user))
         .nest("/api/v1", api_router)
         .with_state(app_state.clone());
 

@@ -9,7 +9,7 @@ use crate::{
 
 pub async fn get_member_info(
     user_id: String,
-    member_id: String,
+    team_id: String,
     repo: &Repo,
 ) -> ServiceResult<MemberInfoReply> {
     let member = query_as!(
@@ -25,12 +25,21 @@ pub async fn get_member_info(
             f_is_typesetter,
             f_is_principal
         FROM t_member
-        WHERE f_member_id = $1
+        WHERE f_team_id = $1
         "#,
-        member_id
+        team_id
     )
-    .fetch_one(&*repo.pool())
+    .fetch_optional(&*repo.pool())
     .await?;
+
+    let member = match member {
+        Some(m) => m,
+        None => {
+            return Ok(fail()
+                .with_code(StatusCode::NOT_FOUND.as_u16())
+                .with_message("Member not found.".to_string()));
+        }
+    };
 
     if user_id != member.f_user_id {
         return Ok(fail().with_code(StatusCode::FORBIDDEN.as_u16()));
