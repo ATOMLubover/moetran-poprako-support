@@ -8,18 +8,23 @@ use crate::repo::Repo;
 /// `AppState` is a cloneable wrapper around `AppStateInner` using `Arc`.
 #[derive(Clone, Debug)]
 pub(crate) struct AppState {
-    inner: Arc<AppStateInner>,
+    inner: Arc<Inner>,
 }
 
 impl AppState {
-    pub fn new(config: AppConfig, repo: Repo, cache: Cache) -> Self {
-        Self {
-            inner: Arc::new(AppStateInner {
+    pub fn new(config: AppConfig, repo: Repo, cache: Cache) -> anyhow::Result<Self> {
+        let jwt_secret = std::env::var("JWT_SECRET").map_err(|err| {
+            anyhow::anyhow!("Error when reading JWT_SECRET from environment: {}", err)
+        })?;
+
+        Ok(Self {
+            inner: Arc::new(Inner {
                 config,
                 repo,
                 cache,
+                jwt_secret,
             }),
-        }
+        })
     }
 
     pub fn config(&self) -> &AppConfig {
@@ -33,12 +38,17 @@ impl AppState {
     pub fn cache(&self) -> &Cache {
         &self.inner.cache
     }
+
+    pub fn jwt_secret(&self) -> &str {
+        &self.inner.jwt_secret
+    }
 }
 
 /// `AppStateInner` has not to be Clone because `AppState` is the one being cloned.
 #[derive(Debug)]
-pub struct AppStateInner {
-    pub config: AppConfig,
-    pub repo: Repo,
-    pub cache: Cache,
+pub struct Inner {
+    config: AppConfig,
+    repo: Repo,
+    cache: Cache,
+    jwt_secret: String,
 }

@@ -10,6 +10,7 @@ pub async fn health_check() -> HttpResult<HealthCheck> {
     service::health_check().await.into()
 }
 
+#[tracing::instrument(level = "debug")]
 pub async fn check_app_state(State(state): State<AppState>) -> HttpResult<String> {
     if std::env::var("APP_ENV")
         .unwrap_or("production".to_string())

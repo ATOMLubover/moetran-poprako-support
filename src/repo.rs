@@ -1,6 +1,8 @@
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::ops::Deref;
 
+pub mod user;
+
 #[derive(Debug)]
 pub struct Repo {
     pool: PgPool,

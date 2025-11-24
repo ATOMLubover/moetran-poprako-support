@@ -66,7 +66,7 @@ async fn init_cache() -> anyhow::Result<Cache> {
     Ok(cache)
 }
 
-fn compose_app_state(config: AppConfig, cache: Cache, repo: Repo) -> AppState {
+fn compose_app_state(config: AppConfig, cache: Cache, repo: Repo) -> anyhow::Result<AppState> {
     AppState::new(config, repo, cache)
 }
 
@@ -81,7 +81,7 @@ pub async fn run() -> anyhow::Result<()> {
 
     let repo = init_repo().await?;
 
-    let app_state = compose_app_state(config, cache, repo);
+    let app_state = compose_app_state(config, cache, repo)?;
 
     http::run_server(&app_state).await?;
 

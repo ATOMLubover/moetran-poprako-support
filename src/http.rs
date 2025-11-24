@@ -6,6 +6,7 @@ use tokio::net::TcpListener;
 use tracing::debug;
 
 mod health;
+mod middleware;
 mod result;
 
 use crate::state::AppState;
