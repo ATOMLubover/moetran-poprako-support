@@ -1,7 +1,7 @@
 migadd:
 	sqlx migrate add -r $(name)
 
-migrev:
+migrvt:
 	sqlx migrate revert
 
 migrun:

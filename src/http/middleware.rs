@@ -24,13 +24,13 @@ pub async fn auth_middleware(
 ) -> Result<Response, StatusCode> {
     // Extract the bearer token from the Authorization header
     // and validate it using the JWT secret from AppState.
-    let claims: Claims = decode(
-        auth.token(),
-        &DecodingKey::from_secret(state.jwt_secret().as_bytes()),
-        &Validation::new(Algorithm::HS256),
-    )
-    .map_err(|_| StatusCode::UNAUTHORIZED)?
-    .claims;
+    let claims: Claims = state
+        .jwt_codec()
+        .decode_token(auth.token())
+        .map_err(|err| {
+            tracing::warn!("JWT decoding error: {}", err);
+            StatusCode::UNAUTHORIZED
+        })?;
 
     // Insert claims into request extensions for downstream handlers to access.
     req.extensions_mut().insert(claims);

@@ -34,6 +34,7 @@ where
     T: Serialize,
 {
     fn from(err: ServiceError) -> Self {
+        // We never pass the error message to the client for security reasons.
         match err {
             ServiceError::RedisError(_) => HttpResult {
                 code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
@@ -41,6 +42,16 @@ where
                 data: None,
             },
             ServiceError::DatabaseError(_) => HttpResult {
+                code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                message: None,
+                data: None,
+            },
+            ServiceError::JwtCodecError(_) => HttpResult {
+                code: StatusCode::UNAUTHORIZED.as_u16(),
+                message: None,
+                data: None,
+            },
+            ServiceError::PasswordHashError(_) => HttpResult {
                 code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
                 message: None,
                 data: None,

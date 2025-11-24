@@ -1,13 +1,17 @@
-use crate::repo::Repo;
-
 pub struct UserSecret {
-    pub user_id: String,
-    pub password_hash: String,
+    pub f_user_id: String,
+    pub f_password_hash: String,
 }
 
-pub struct UserRow {
-    pub user_id: String,
-    pub username: String,
-    pub email: String,
-    pub password_hash: String,
+pub struct NewUser {
+    pub f_user_id: String,
+    pub f_username: String,
+    pub f_email: String,
+    pub f_password_hash: String,
+}
+
+pub struct UserBasic {
+    pub f_user_id: String,
+    pub f_username: String,
+    pub f_email: String,
 }

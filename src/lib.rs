@@ -4,12 +4,13 @@ use tracing_subscriber::EnvFilter;
 mod cache;
 mod config;
 mod http;
+mod jwt;
 mod model;
 mod repo;
 mod service;
 mod state;
 
-use crate::{cache::Cache, config::AppConfig, repo::Repo, state::AppState};
+use crate::{cache::Cache, config::AppConfig, jwt::JwtCodec, repo::Repo, state::AppState};
 
 async fn init_env() -> anyhow::Result<()> {
     dotenvy::dotenv().map_err(|err| anyhow::anyhow!("Error when loading env: {}", err))?;
@@ -41,6 +42,7 @@ async fn init_repo() -> anyhow::Result<Repo> {
         .await
         .map_err(|err| anyhow::anyhow!("Error when initializing Database connection: {}", err))?;
 
+    // Test the database with an initial PING command to ensure connectivity.
     database
         .ping()
         .await
@@ -66,8 +68,16 @@ async fn init_cache() -> anyhow::Result<Cache> {
     Ok(cache)
 }
 
-fn compose_app_state(config: AppConfig, cache: Cache, repo: Repo) -> anyhow::Result<AppState> {
-    AppState::new(config, repo, cache)
+fn init_jwt_codec() -> anyhow::Result<JwtCodec> {
+    let jwt_secret = std::env::var("JWT_SECRET").map_err(|err| {
+        anyhow::anyhow!("Error when reading JWT_SECRET from environment: {}", err)
+    })?;
+
+    let jwt_codec = JwtCodec::new(jwt_secret);
+
+    debug!("JWT Codec initialized");
+
+    Ok(jwt_codec)
 }
 
 pub async fn run() -> anyhow::Result<()> {
@@ -81,7 +91,9 @@ pub async fn run() -> anyhow::Result<()> {
 
     let repo = init_repo().await?;
 
-    let app_state = compose_app_state(config, cache, repo)?;
+    let jwt_codec = init_jwt_codec()?;
+
+    let app_state = AppState::new(config, repo, cache, jwt_codec);
 
     http::run_server(&app_state).await?;
 

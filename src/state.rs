@@ -1,8 +1,8 @@
-use std::ops::Deref;
 use std::sync::Arc;
 
 use crate::cache::Cache;
 use crate::config::AppConfig;
+use crate::jwt::JwtCodec;
 use crate::repo::Repo;
 
 /// `AppState` is a cloneable wrapper around `AppStateInner` using `Arc`.
@@ -12,19 +12,15 @@ pub(crate) struct AppState {
 }
 
 impl AppState {
-    pub fn new(config: AppConfig, repo: Repo, cache: Cache) -> anyhow::Result<Self> {
-        let jwt_secret = std::env::var("JWT_SECRET").map_err(|err| {
-            anyhow::anyhow!("Error when reading JWT_SECRET from environment: {}", err)
-        })?;
-
-        Ok(Self {
+    pub fn new(config: AppConfig, repo: Repo, cache: Cache, jwt_codec: JwtCodec) -> Self {
+        Self {
             inner: Arc::new(Inner {
                 config,
                 repo,
                 cache,
-                jwt_secret,
+                jwt_codec,
             }),
-        })
+        }
     }
 
     pub fn config(&self) -> &AppConfig {
@@ -39,8 +35,8 @@ impl AppState {
         &self.inner.cache
     }
 
-    pub fn jwt_secret(&self) -> &str {
-        &self.inner.jwt_secret
+    pub fn jwt_codec(&self) -> &JwtCodec {
+        &self.inner.jwt_codec
     }
 }
 
@@ -50,5 +46,5 @@ pub struct Inner {
     config: AppConfig,
     repo: Repo,
     cache: Cache,
-    jwt_secret: String,
+    jwt_codec: JwtCodec,
 }

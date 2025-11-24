@@ -4,6 +4,8 @@ use serde::Deserialize;
 pub struct AppConfig {
     pub server_host: String,
     pub server_port: u16,
+
+    pub jwt_exp_seconds: usize,
 }
 
 impl AppConfig {

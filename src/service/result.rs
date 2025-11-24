@@ -1,13 +1,21 @@
+use axum::http::StatusCode;
 use serde::Serialize;
 use thiserror::Error;
 
 pub type ServiceResult<T> = Result<ServiceValue<T>, ServiceError>;
 
-pub fn succeed<T>() -> ServiceValue<T>
+pub fn pass<T>() -> ServiceValue<T>
 where
     T: Serialize,
 {
     ServiceValue::<T>::default()
+}
+
+pub fn fail<T>() -> ServiceValue<T>
+where
+    T: Serialize,
+{
+    ServiceValue::<T>::default().with_code(StatusCode::BAD_REQUEST.as_u16())
 }
 
 #[derive(Debug, Error)]
@@ -16,6 +24,10 @@ pub enum ServiceError {
     RedisError(#[from] redis::RedisError),
     #[error("Database error: {0}")]
     DatabaseError(#[from] sqlx::Error),
+    #[error("JWT codec error: {0}")]
+    JwtCodecError(#[from] crate::jwt::Error),
+    #[error("Argon2 password hash error: {0}")]
+    PasswordHashError(#[from] argon2::password_hash::Error),
 }
 
 #[derive(Debug, Serialize)]

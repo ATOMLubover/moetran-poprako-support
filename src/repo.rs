@@ -1,6 +1,8 @@
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::ops::Deref;
 
+pub mod member;
+pub mod team;
 pub mod user;
 
 #[derive(Debug)]
@@ -24,6 +26,10 @@ impl Repo {
         Ok(Self { pool })
     }
 
+    pub fn pool(&self) -> &PgPool {
+        &self.pool
+    }
+
     pub async fn ping(&self) -> anyhow::Result<()> {
         sqlx::query("SELECT 1")
             .execute(&self.pool)
@@ -31,13 +37,5 @@ impl Repo {
             .map_err(|err| anyhow::anyhow!("Error when PING Database: {}", err))?;
 
         Ok(())
-    }
-}
-
-impl Deref for Repo {
-    type Target = PgPool;
-
-    fn deref(&self) -> &Self::Target {
-        &self.pool
     }
 }

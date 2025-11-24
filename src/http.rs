@@ -1,23 +1,40 @@
 use std::net::SocketAddrV4;
 
 use axum::Router;
-use axum::routing;
+use axum::routing::get;
+use axum::routing::post;
 use tokio::net::TcpListener;
 use tracing::debug;
 
 mod health;
+mod member;
 mod middleware;
 mod result;
+mod user;
 
+use crate::http::member::get_member_info;
+use crate::http::user::get_user_info;
+use crate::http::user::sync_user;
 use crate::state::AppState;
 
 async fn init_router(app_state: &AppState) -> anyhow::Result<Router> {
     let health_router = Router::new()
-        .route("/check", routing::get(health::health_check))
-        .route("/app_state", routing::get(health::check_app_state));
+        .route("/check", get(health::health_check))
+        .route("/app_state", get(health::check_app_state));
+
+    let user_router = Router::new()
+        .route("/sync", post(sync_user))
+        .route("/{user_id}", get(get_user_info));
+
+    let member_router = Router::new().route("/{member_id}", get(get_member_info));
+
+    let api_router = Router::new()
+        .nest("/health", health_router)
+        .nest("/user", user_router)
+        .nest("/member", member_router);
 
     let router = Router::new()
-        .nest("/health", health_router)
+        .nest("/api/v1", api_router)
         .with_state(app_state.clone());
 
     Ok(router)
