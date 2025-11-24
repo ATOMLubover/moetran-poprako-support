@@ -11,6 +11,7 @@ axum-extra = { version = "0.12.2", features = ["typed-header"] }
 dotenvy = "0.15.7"
 jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
 redis = { version = "0.32.7", features = ["tokio-comp"] }
+reqwest = { version = "0.12.24", features = ["json"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio"] }
@@ -19,3 +20,4 @@ time = { version = "0.3.44", features = ["serde"] }
 tokio = { version = "1.47.1", features = ["full"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
+url = "2.5.7"

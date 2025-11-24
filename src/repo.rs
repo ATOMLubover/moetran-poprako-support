@@ -1,7 +1,8 @@
 use sqlx::{PgPool, postgres::PgPoolOptions};
-use std::ops::Deref;
 
 pub mod member;
+pub mod project;
+pub mod projset;
 pub mod team;
 pub mod user;
 

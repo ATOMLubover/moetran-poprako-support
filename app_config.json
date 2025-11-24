@@ -1,5 +1,6 @@
 {
   "server_host": "127.0.0.1",
   "server_port": 8080,
-  "jwt_exp_seconds": 1728000
+  "jwt_exp_seconds": 1728000,
+  "mtr_base_url": "https://api.moetran.com"
 }

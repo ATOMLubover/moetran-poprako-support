@@ -20,6 +20,8 @@ where
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
+    #[error("Generic error: {0}")]
+    GenericError(String),
     #[error("Redis error: {0}")]
     RedisError(#[from] redis::RedisError),
     #[error("Database error: {0}")]
@@ -28,6 +30,10 @@ pub enum ServiceError {
     JwtCodecError(#[from] crate::jwt::Error),
     #[error("Argon2 password hash error: {0}")]
     PasswordHashError(#[from] argon2::password_hash::Error),
+    #[error("HTTP request error: {0}")]
+    HttpRequestError(#[from] reqwest::Error),
+    #[error("URL parse error: {0}")]
+    UrlParseError(#[from] url::ParseError),
 }
 
 #[derive(Debug, Serialize)]

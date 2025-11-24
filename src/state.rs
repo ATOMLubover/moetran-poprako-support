@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::cache::Cache;
 use crate::config::AppConfig;
+use crate::crawler::Crawler;
 use crate::jwt::JwtCodec;
 use crate::repo::Repo;
 
@@ -12,13 +13,20 @@ pub(crate) struct AppState {
 }
 
 impl AppState {
-    pub fn new(config: AppConfig, repo: Repo, cache: Cache, jwt_codec: JwtCodec) -> Self {
+    pub fn new(
+        config: AppConfig,
+        repo: Repo,
+        cache: Cache,
+        jwt_codec: JwtCodec,
+        crawler: Crawler,
+    ) -> Self {
         Self {
             inner: Arc::new(Inner {
                 config,
                 repo,
                 cache,
                 jwt_codec,
+                crawler,
             }),
         }
     }
@@ -38,6 +46,10 @@ impl AppState {
     pub fn jwt_codec(&self) -> &JwtCodec {
         &self.inner.jwt_codec
     }
+
+    pub fn crawler(&self) -> &Crawler {
+        &self.inner.crawler
+    }
 }
 
 /// `AppStateInner` has not to be Clone because `AppState` is the one being cloned.
@@ -47,4 +59,5 @@ pub struct Inner {
     repo: Repo,
     cache: Cache,
     jwt_codec: JwtCodec,
+    crawler: Crawler,
 }

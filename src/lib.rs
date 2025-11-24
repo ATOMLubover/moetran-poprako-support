@@ -3,6 +3,7 @@ use tracing_subscriber::EnvFilter;
 
 mod cache;
 mod config;
+mod crawler;
 mod http;
 mod jwt;
 mod model;
@@ -10,7 +11,9 @@ mod repo;
 mod service;
 mod state;
 
-use crate::{cache::Cache, config::AppConfig, jwt::JwtCodec, repo::Repo, state::AppState};
+use crate::{
+    cache::Cache, config::AppConfig, crawler::Crawler, jwt::JwtCodec, repo::Repo, state::AppState,
+};
 
 async fn init_env() -> anyhow::Result<()> {
     dotenvy::dotenv().map_err(|err| anyhow::anyhow!("Error when loading env: {}", err))?;
@@ -80,6 +83,14 @@ fn init_jwt_codec() -> anyhow::Result<JwtCodec> {
     Ok(jwt_codec)
 }
 
+fn init_crawler() -> Crawler {
+    let crawler = Crawler::new();
+
+    debug!("Crawler initialized");
+
+    crawler
+}
+
 pub async fn run() -> anyhow::Result<()> {
     init_env().await?;
 
@@ -93,7 +104,9 @@ pub async fn run() -> anyhow::Result<()> {
 
     let jwt_codec = init_jwt_codec()?;
 
-    let app_state = AppState::new(config, repo, cache, jwt_codec);
+    let crawler = init_crawler();
+
+    let app_state = AppState::new(config, repo, cache, jwt_codec, crawler);
 
     http::run_server(&app_state).await?;
 

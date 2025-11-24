@@ -10,11 +10,15 @@ use tracing::debug;
 mod health;
 mod member;
 mod middleware;
+mod proj;
+mod projset;
 mod result;
 mod user;
 
 use crate::http::member::get_member_info;
 use crate::http::middleware::auth_middleware;
+use crate::http::proj::create_proj as http_create_proj;
+use crate::http::projset::create_projset as http_create_projset;
 use crate::http::user::get_user_info;
 use crate::http::user::sync_user;
 use crate::state::AppState;
@@ -28,10 +32,16 @@ async fn init_router(app_state: &AppState) -> anyhow::Result<Router> {
 
     let member_router = Router::new().route("/{member_id}", get(get_member_info));
 
+    let proj_router = Router::new().route("/", post(http_create_proj));
+
+    let projset_router = Router::new().route("/", post(http_create_projset));
+
     let api_router = Router::new()
         .nest("/health", health_router)
-        .nest("/user", user_router)
-        .nest("/member", member_router)
+        .nest("/users", user_router)
+        .nest("/members", member_router)
+        .nest("/projs", proj_router)
+        .nest("/projsets", projset_router)
         .route_layer(from_fn_with_state(app_state.clone(), auth_middleware));
 
     let router = Router::new()

@@ -6,6 +6,8 @@ pub struct AppConfig {
     pub server_port: u16,
 
     pub jwt_exp_seconds: usize,
+
+    pub mtr_base_url: String,
 }
 
 impl AppConfig {

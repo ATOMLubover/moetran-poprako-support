@@ -168,6 +168,119 @@ curl -G https://api.poprako.example/api/v1/member/info \
 
 ---
 
+## ProjSet 部分
+
+### 4. 创建项目集 (Project Set)
+
+在指定团队下创建一个新的项目集。仅团队管理员可创建。首先在尨译上创建对应的 project-set，再在本服务中记录 serial 并初始化后续项目索引。
+
+| 方法 | 路径                     | 认证 | 幂等性                               |
+| ---- | ------------------------ | ---- | ------------------------------------ |
+| POST | `/api/v1/projset/create` | 需要 | 非幂等（重复名称取决于外部服务策略） |
+
+请求体（JSON）：
+
+```json
+{
+    "projset_name": "主线文本",
+    "projset_description": "主线剧情相关文本",
+    "team_id": "team_a",
+    "mtr_token": "<moetran-access-token>" // 用于调用尨译外部接口
+}
+```
+
+成功响应（创建）：
+
+```json
+{
+    "code": 201,
+    "data": { "projset_serial": 3 }
+}
+```
+
+错误响应：
+
+| 场景                        | code | message                                        |
+| --------------------------- | ---- | ---------------------------------------------- |
+| 未认证 / Token 非法         | 401  | (无或标准未认证语义)                           |
+| 非管理员用户尝试创建        | 403  | Only team admins can create project sets.      |
+| JSON 解析失败               | 422  | Unprocessable entity                           |
+| 外部尨译接口失败 / 内部错误 | 500  | Internal server error (不直接暴露外部错误细节) |
+
+cURL 示例：
+
+```bash
+curl -X POST https://api.poprako.example/api/v1/projset/create \
+    -H "Authorization: Bearer <jwt>" \
+    -H "Content-Type: application/json" \
+    -d '{"projset_name":"主线文本","projset_description":"主线剧情相关文本","team_id":"team_a","mtr_token":"<moetran-token>"}'
+```
+
+---
+
+## Proj 部分
+
+### 5. 创建项目 (Proj)
+
+在已有项目集中创建一个具体项目。仅团队管理员可创建。会先调用尨译创建实际项目，再记录到本系统并增加对应项目集的 index 计数。
+
+| 方法 | 路径                  | 认证 | 幂等性 |
+| ---- | --------------------- | ---- | ------ |
+| POST | `/api/v1/proj/create` | 需要 | 非幂等 |
+
+请求体（JSON）：
+
+```json
+{
+    "proj_name": "章节1对话",
+    "proj_description": "第一章主要对话文本",
+    "team_id": "team_a",
+    "projset_id": "projset_123",        // 已存在的项目集 ID（来自尨译）
+    "mtr_auth": "<moetran-access-token>",
+    "workset_index": 0,                  // 预留字段（当前未在示例中使用业务含义）
+    "source_language": "ja",
+    "target_languages": ["zh_CN"],
+    "allow_apply_type": 1,               // 具体枚举语义参考后续扩展（moetran module）
+    "application_check_type": 0,         // 申请审核方式枚举
+    "default_role": "translator"        // 新申请默认角色
+}
+```
+
+成功响应：
+
+```json
+{
+    "code": 201,
+    "data": {
+        "proj_serial": 12,
+        "projset_index": 5
+    }
+}
+```
+
+错误响应：
+
+| 场景                          | code | message                                                |
+| ----------------------------- | ---- | ------------------------------------------------------ |
+| 未认证 / Token 非法           | 401  | (无或标准未认证语义)                                   |
+| 非管理员用户尝试创建          | 403  | Only team admins can create project sets. (待修正文案) |
+| 关联项目集不存在 / 不匹配团队 | 404  | Resource not found                                     |
+| JSON 解析失败                 | 422  | Unprocessable entity                                   |
+| 外部尨译接口失败 / 内部错误   | 500  | Internal server error                                  |
+
+说明：当前后端返回的 403 message 仍为 *Only team admins can create project sets.*，属于实现时的文案复用，可在后续迭代中改为 *Only team admins can create projects.*。
+
+cURL 示例：
+
+```bash
+curl -X POST https://api.poprako.example/api/v1/proj/create \
+    -H "Authorization: Bearer <jwt>" \
+    -H "Content-Type: application/json" \
+    -d '{"proj_name":"章节1对话","proj_description":"第一章主要对话文本","team_id":"team_a","projset_id":"projset_123","mtr_auth":"<moetran-token>","workset_index":0,"source_language":"ja","target_languages":["zh_CN"],"allow_apply_type":1,"application_check_type":0,"default_role":"translator"}'
+```
+
+---
+
 ## 公共错误语义
 
 | code | 含义                               |

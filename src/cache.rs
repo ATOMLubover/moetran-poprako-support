@@ -1,5 +1,8 @@
 use redis::{AsyncTypedCommands, Client, RedisResult};
 
+pub mod project;
+pub mod projset;
+
 #[derive(Debug)]
 pub struct Cache {
     client: Client,

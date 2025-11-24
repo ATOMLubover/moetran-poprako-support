@@ -56,3 +56,8 @@ pub async fn get_member_info(
 
     Ok(crate::service::pass().with_data(member_info))
 }
+
+pub async fn pick_member_by_position(
+
+) -> ServiceResult<MemberInfoReply> {
+}
