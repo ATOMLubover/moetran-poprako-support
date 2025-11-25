@@ -1,7 +1,7 @@
 use sqlx::{PgPool, postgres::PgPoolOptions};
 
 pub mod member;
-pub mod project;
+pub mod proj;
 pub mod projset;
 pub mod team;
 pub mod user;

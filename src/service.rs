@@ -1,3 +1,4 @@
+mod assign;
 mod health;
 mod member;
 mod proj;
@@ -5,6 +6,7 @@ mod projset;
 mod result;
 mod user;
 
+pub use assign::*;
 pub use health::*;
 pub use member::*;
 pub use proj::*;

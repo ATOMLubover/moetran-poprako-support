@@ -2,11 +2,11 @@ use std::net::SocketAddrV4;
 
 use axum::Router;
 use axum::middleware::from_fn_with_state;
-use axum::routing::get;
-use axum::routing::post;
+use axum::routing::{get, post, put};
 use tokio::net::TcpListener;
 use tracing::debug;
 
+mod assign;
 mod health;
 mod member;
 mod middleware;
@@ -15,9 +15,12 @@ mod projset;
 mod result;
 mod user;
 
-use crate::http::member::get_member_info;
+use crate::http::assign::assign_member;
 use crate::http::middleware::auth_middleware;
-use crate::http::proj::create_proj as http_create_proj;
+use crate::http::proj::{
+    create_proj as http_create_proj, get_projs_by_id as http_get_projs_by_id,
+    mark_proj_published as http_mark_proj_published, mark_proj_status as http_mark_proj_status,
+};
 use crate::http::projset::create_projset as http_create_projset;
 use crate::http::user::get_user_info;
 use crate::http::user::sync_user;
@@ -30,9 +33,16 @@ async fn init_router(app_state: &AppState) -> anyhow::Result<Router> {
 
     let user_router = Router::new().route("/{user_id}", get(get_user_info));
 
-    let member_router = Router::new().route("/{member_id}", get(get_member_info));
+    let member_router = Router::new()
+        .route("/{member_id}", get(member::get_member_info))
+        .route("/", get(member::pick_members_by_position));
 
-    let proj_router = Router::new().route("/", post(http_create_proj));
+    let proj_router = Router::new()
+        .route("/", post(http_create_proj))
+        .route("/batch", post(http_get_projs_by_id))
+        .route("/{proj_id}/assign", post(assign_member))
+        .route("/{proj_id}/status", put(http_mark_proj_status))
+        .route("/{proj_id}/publish", put(http_mark_proj_published));
 
     let projset_router = Router::new().route("/", post(http_create_projset));
 

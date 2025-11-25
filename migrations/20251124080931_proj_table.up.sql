@@ -6,6 +6,12 @@ CREATE TABLE IF NOT EXISTS t_proj (
     f_projset_serial INTEGER NOT NULL,
     f_projset_index INTEGER NOT NULL,
 
+    f_translating_status INTEGER NOT NULL DEFAULT 0,
+    f_proofreading_status INTEGER NOT NULL DEFAULT 0,
+    f_typesetting_status INTEGER NOT NULL DEFAULT 0,
+    f_reviewing_status INTEGER NOT NULL DEFAULT 0,
+    f_is_published BOOLEAN NOT NULL DEFAULT FALSE,
+
     f_created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     UNIQUE (f_proj_name, f_projset_id),

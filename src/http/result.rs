@@ -34,13 +34,13 @@ where
     T: Serialize,
 {
     fn from(err: ServiceError) -> Self {
-        // We never pass the error message to the client for security reasons.
         match err {
             ServiceError::GenericError(msg) => HttpResult {
                 code: StatusCode::BAD_REQUEST.as_u16(),
                 message: Some(msg),
                 data: None,
             },
+            // We never pass the error message to the client for security reasons.
             ServiceError::RedisError(_) => HttpResult {
                 code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
                 message: None,

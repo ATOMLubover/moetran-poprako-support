@@ -11,9 +11,9 @@ use crate::{
     crawler::Crawler,
     model::{
         moetran::{MtrProjSetCreatePayload, MtrProjSetCreateReply},
-        projset::{ProjSetCreatePayload, ProjSetCreateReply},
+        projset::{ProjSetCreatePayload, ProjSetCreateReply, ProjSetInfoReply},
     },
-    repo::{Repo, member::MemberPerm},
+    repo::{Repo, member::MemberPerm, projset::ProjSetBasic},
     service::{ServiceError, ServiceResult, fail, pass},
 };
 
@@ -56,7 +56,7 @@ pub async fn create_projset(
     repo: &Repo,
 ) -> ServiceResult<ProjSetCreateReply> {
     // Check whether the user is the admin of the team.
-    let user = sqlx::query_as!(
+    let member_perm = sqlx::query_as!(
         MemberPerm,
         r#"
         SELECT
@@ -72,7 +72,7 @@ pub async fn create_projset(
     .fetch_optional(&*repo.pool())
     .await?;
 
-    if user.is_none() || !user.as_ref().unwrap().f_is_admin {
+    if member_perm.is_none() || !member_perm.as_ref().unwrap().f_is_admin {
         return Ok(fail()
             .with_code(StatusCode::FORBIDDEN.as_u16())
             .with_message("Only team admins can create project sets.".to_string()));
@@ -132,4 +132,39 @@ pub async fn create_projset(
     Ok(pass()
         .with_code(StatusCode::CREATED.as_u16())
         .with_data(ProjSetCreateReply { projset_serial }))
+}
+
+pub async fn get_projsets_by_id(
+    projset_ids: Vec<String>,
+    repo: &Repo,
+) -> ServiceResult<Vec<ProjSetInfoReply>> {
+    let projset_list = sqlx::query_as!(
+        ProjSetBasic,
+        r#"
+        SELECT 
+            f_projset_id,
+            f_projset_name,
+            f_projset_description,
+            f_projset_serial,
+            f_team_id
+        FROM t_projset
+        WHERE f_projset_id = ANY($1)
+        "#,
+        &projset_ids
+    )
+    .fetch_all(&*repo.pool())
+    .await?;
+
+    let projsets: Vec<ProjSetInfoReply> = projset_list
+        .into_iter()
+        .map(|ps| ProjSetInfoReply {
+            projset_id: ps.f_projset_id,
+            projset_name: ps.f_projset_name,
+            projset_description: ps.f_projset_description,
+            projset_serial: ps.f_projset_serial,
+            team_id: ps.f_team_id,
+        })
+        .collect();
+
+    Ok(pass().with_data(projsets))
 }

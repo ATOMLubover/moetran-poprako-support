@@ -17,7 +17,7 @@ pub struct ProjSetCreateReply {
 pub struct ProjSetInfoReply {
     pub projset_id: String,
     pub projset_name: String,
-    pub description: Option<String>,
+    pub projset_description: Option<String>,
     pub projset_serial: i32,
     pub team_id: String,
 }

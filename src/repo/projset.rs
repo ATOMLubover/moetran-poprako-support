@@ -11,7 +11,7 @@ pub struct NewProjSet {
 pub struct ProjSetBasic {
     pub f_projset_id: String,
     pub f_projset_name: String,
-    pub f_description: Option<String>,
+    pub f_projset_description: Option<String>,
 
     pub f_projset_serial: i32,
 

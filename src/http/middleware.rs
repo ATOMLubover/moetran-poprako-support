@@ -8,7 +8,6 @@ use axum_extra::{
     TypedHeader,
     headers::{Authorization, authorization::Bearer},
 };
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 
 use crate::model::auth::Claims;
 use crate::state::AppState;

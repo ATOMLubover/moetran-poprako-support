@@ -2,9 +2,9 @@ use axum::http::StatusCode;
 use sqlx::query_as;
 
 use crate::{
-    model::member::MemberInfoReply,
-    repo::{Repo, member::MemberBasic},
-    service::{ServiceResult, fail},
+    model::member::{MemberAbstract, MemberInfoReply},
+    repo::Repo,
+    service::{ServiceError, ServiceResult, fail, pass},
 };
 
 pub async fn get_member_info(
@@ -12,22 +12,37 @@ pub async fn get_member_info(
     team_id: String,
     repo: &Repo,
 ) -> ServiceResult<MemberInfoReply> {
+    struct MemberJoined {
+        f_member_id: String,
+        f_user_id: String,
+        f_team_id: String,
+        f_is_admin: bool,
+        f_is_translator: bool,
+        f_is_proofreader: bool,
+        f_is_typesetter: bool,
+        f_is_principal: bool,
+        f_username: String,
+    }
+
     let member = query_as!(
-        MemberBasic,
+        MemberJoined,
         r#"
         SELECT 
-            f_member_id,
-            f_user_id,
-            f_team_id,
-            f_is_admin,
-            f_is_translator,
-            f_is_proofreader,
-            f_is_typesetter,
-            f_is_principal
-        FROM t_member
-        WHERE f_team_id = $1
+            m.f_member_id,
+            m.f_user_id,
+            m.f_team_id,
+            m.f_is_admin,
+            m.f_is_translator,
+            m.f_is_proofreader,
+            m.f_is_typesetter,
+            m.f_is_principal,
+            u.f_username
+        FROM t_member m
+        JOIN t_user u ON m.f_user_id = u.f_user_id
+        WHERE m.f_team_id = $1 AND m.f_user_id = $2
         "#,
-        team_id
+        team_id,
+        user_id
     )
     .fetch_optional(&*repo.pool())
     .await?;
@@ -41,12 +56,9 @@ pub async fn get_member_info(
         }
     };
 
-    if user_id != member.f_user_id {
-        return Ok(fail().with_code(StatusCode::FORBIDDEN.as_u16()));
-    }
-
     let member_info = MemberInfoReply {
         member_id: member.f_member_id,
+        username: member.f_username,
         is_admin: member.f_is_admin,
         is_translator: member.f_is_translator,
         is_proofreader: member.f_is_proofreader,
@@ -54,10 +66,149 @@ pub async fn get_member_info(
         is_principal: member.f_is_principal,
     };
 
-    Ok(crate::service::pass().with_data(member_info))
+    Ok(pass().with_data(member_info))
 }
 
-pub async fn pick_member_by_position(
+pub async fn pick_members_by_position(
+    team_id: String,
+    position: String,
+    page: i64,
+    limit: i64,
+    repo: &Repo,
+) -> ServiceResult<Vec<MemberAbstract>> {
+    // Basic pagination sanitization.
+    let page = if page < 1 { 1 } else { page };
+    let limit = if limit < 1 { 10 } else { limit };
 
-) -> ServiceResult<MemberInfoReply> {
+    let offset = (page - 1) * limit;
+
+    struct MemberJoined {
+        f_member_id: String,
+        f_user_id: String,
+        f_team_id: String,
+        f_is_admin: bool,
+        f_is_translator: bool,
+        f_is_proofreader: bool,
+        f_is_typesetter: bool,
+        f_is_principal: bool,
+        f_username: String,
+    }
+
+    let members = match position.as_str() {
+        "translator" => {
+            sqlx::query_as!(
+                MemberJoined,
+                r#"
+            SELECT
+                m.f_member_id,
+                m.f_user_id,
+                m.f_team_id,
+                m.f_is_admin,
+                m.f_is_translator,
+                m.f_is_proofreader,
+                m.f_is_typesetter,
+                m.f_is_principal,
+                u.f_username
+            FROM t_member m
+            JOIN t_user u ON m.f_user_id = u.f_user_id
+            WHERE m.f_team_id = $1 AND m.f_is_translator = TRUE
+            OFFSET $2 LIMIT $3
+            "#,
+                team_id,
+                offset,
+                limit
+            )
+            .fetch_all(&*repo.pool())
+            .await?
+        }
+        "proofreader" => {
+            sqlx::query_as!(
+                MemberJoined,
+                r#"
+            SELECT
+                m.f_member_id,
+                m.f_user_id,
+                m.f_team_id,
+                m.f_is_admin,
+                m.f_is_translator,
+                m.f_is_proofreader,
+                m.f_is_typesetter,
+                m.f_is_principal,
+                u.f_username
+            FROM t_member m
+            JOIN t_user u ON m.f_user_id = u.f_user_id
+            WHERE m.f_team_id = $1 AND m.f_is_proofreader = TRUE
+            OFFSET $2 LIMIT $3
+            "#,
+                team_id,
+                offset,
+                limit
+            )
+            .fetch_all(&*repo.pool())
+            .await?
+        }
+        "typesetter" => {
+            sqlx::query_as!(
+                MemberJoined,
+                r#"
+            SELECT
+                m.f_member_id,
+                m.f_user_id,
+                m.f_team_id,
+                m.f_is_admin,
+                m.f_is_translator,
+                m.f_is_proofreader,
+                m.f_is_typesetter,
+                m.f_is_principal,
+                u.f_username
+            FROM t_member m
+            JOIN t_user u ON m.f_user_id = u.f_user_id
+            WHERE m.f_team_id = $1 AND m.f_is_typesetter = TRUE
+            OFFSET $2 LIMIT $3
+            "#,
+                team_id,
+                offset,
+                limit
+            )
+            .fetch_all(&*repo.pool())
+            .await?
+        }
+        "principal" => {
+            sqlx::query_as!(
+                MemberJoined,
+                r#"
+            SELECT
+                m.f_member_id,
+                m.f_user_id,
+                m.f_team_id,
+                m.f_is_admin,
+                m.f_is_translator,
+                m.f_is_proofreader,
+                m.f_is_typesetter,
+                m.f_is_principal,
+                u.f_username
+            FROM t_member m
+            JOIN t_user u ON m.f_user_id = u.f_user_id
+            WHERE m.f_team_id = $1 AND m.f_is_principal = TRUE
+            OFFSET $2 LIMIT $3
+            "#,
+                team_id,
+                offset,
+                limit
+            )
+            .fetch_all(&*repo.pool())
+            .await?
+        }
+        _ => return Err(ServiceError::GenericError("Invalid position".to_string())),
+    };
+
+    let abstracts = members
+        .into_iter()
+        .map(|m| MemberAbstract {
+            member_id: m.f_member_id,
+            username: m.f_username,
+        })
+        .collect::<Vec<_>>();
+
+    Ok(pass().with_data(abstracts))
 }
