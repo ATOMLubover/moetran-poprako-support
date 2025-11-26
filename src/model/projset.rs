@@ -21,3 +21,8 @@ pub struct ProjSetInfoReply {
     pub projset_serial: i32,
     pub team_id: String,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TeamProjSetReply {
+    pub projsets: Vec<ProjSetInfoReply>,
+}

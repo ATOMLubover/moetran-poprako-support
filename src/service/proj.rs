@@ -74,9 +74,26 @@ pub async fn create_proj(
             .with_message("Only team admins can create project sets.".to_string()));
     }
 
+    // Fetch and increment the projset index from cache.
+    let projset_index = fetch_add_projset_index(&args.projset_id, cache).await?;
+
+    let serial: i32 = sqlx::query_scalar!(
+        r#"
+        SELECT f_projset_serial
+        FROM t_projset
+        WHERE f_team_id = $1 AND f_projset_id = $2
+        "#,
+        args.team_id,
+        args.projset_id
+    )
+    .fetch_one(&*repo.pool())
+    .await?;
+
+    let proj_name = format!("【{}-{}】{}", serial, projset_index, args.proj_name);
+
     // Create the project on Moetran first.
     let mtr_payload = MtrProjectCreatePayload {
-        name: args.proj_name,
+        name: proj_name,
         intro: args.proj_description,
         project_set: args.projset_id,
         source_language: args.source_language,
@@ -93,21 +110,6 @@ pub async fn create_proj(
         &args.mtr_auth,
         &mtr_payload,
     )
-    .await?;
-
-    // Fetch and increment the projset index from cache.
-    let projset_index = fetch_add_projset_index(&mtr_payload.project_set, cache).await?;
-
-    let serial: i32 = sqlx::query_scalar!(
-        r#"
-        SELECT f_projset_serial
-        FROM t_projset
-        WHERE f_team_id = $1 AND f_projset_id = $2
-        "#,
-        args.team_id,
-        mtr_payload.project_set
-    )
-    .fetch_one(&*repo.pool())
     .await?;
 
     // Create the project record in our database.

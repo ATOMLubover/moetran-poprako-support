@@ -2,6 +2,5 @@ CREATE TABLE IF NOT EXISTS t_user (
     f_user_id VARCHAR(255) PRIMARY KEY NOT NULL,
     f_username VARCHAR(100) NOT NULL UNIQUE,
     f_email VARCHAR(255) NOT NULL UNIQUE,
-    f_password_hash VARCHAR(255) NOT NULL,
     f_created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

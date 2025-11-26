@@ -1,9 +1,5 @@
-use argon2::{
-    Argon2, PasswordHash, PasswordHasher as _, PasswordVerifier as _,
-    password_hash::{self, SaltString, rand_core::OsRng},
-};
 use axum::http::StatusCode;
-use sqlx::{query, query_as};
+use sqlx::{query, query_as, query_scalar};
 
 use crate::{
     config::AppConfig,
@@ -15,33 +11,33 @@ use crate::{
     repo::{
         Repo,
         team::TeamBasic,
-        user::{NewUser, UserBasic, UserSecret},
+        user::{NewUser, UserBasic},
     },
     service::{ServiceResult, pass},
 };
 
-/// Hash a plain text password using Argon2.
-fn hash_password(password: &str) -> Result<String, password_hash::Error> {
-    let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
+// /// Hash a plain text password using Argon2.
+// fn hash_password(password: &str) -> Result<String, password_hash::Error> {
+//     let salt = SaltString::generate(&mut OsRng);
+//     let argon2 = Argon2::default();
 
-    let password_hash = argon2
-        .hash_password(password.as_bytes(), &salt)?
-        .to_string();
+//     let password_hash = argon2
+//         .hash_password(password.as_bytes(), &salt)?
+//         .to_string();
 
-    Ok(password_hash)
-}
+//     Ok(password_hash)
+// }
 
-/// Verify a password against a hash.
-fn verify_password(password: &str, password_hash: &str) -> Result<bool, password_hash::Error> {
-    let parsed_hash = PasswordHash::new(password_hash)?;
+// /// Verify a password against a hash.
+// fn verify_password(password: &str, password_hash: &str) -> Result<bool, password_hash::Error> {
+//     let parsed_hash = PasswordHash::new(password_hash)?;
 
-    let argon2 = Argon2::default();
+//     let argon2 = Argon2::default();
 
-    Ok(argon2
-        .verify_password(password.as_bytes(), &parsed_hash)
-        .is_ok())
-}
+//     Ok(argon2
+//         .verify_password(password.as_bytes(), &parsed_hash)
+//         .is_ok())
+// }
 
 /// Synchronize user login by verifying credentials and generating a JWT token.
 /// If a user does not exist, it would be created.
@@ -53,10 +49,9 @@ pub async fn sync_user(
 ) -> ServiceResult<SyncTokenReply> {
     let mut transac = repo.pool().begin().await?;
 
-    let user_secret = query_as!(
-        UserSecret,
+    let user_id = query_scalar!(
         r#"
-        SELECT f_user_id , f_password_hash 
+        SELECT f_user_id
         FROM t_user
         WHERE f_user_id = $1
         "#,
@@ -65,18 +60,8 @@ pub async fn sync_user(
     .fetch_optional(&mut *transac)
     .await?;
 
-    if let Some(user_secret) = user_secret {
-        // User exists, verify password.
-
-        let is_password_valid = verify_password(&args.password, &user_secret.f_password_hash)?;
-
-        if !is_password_valid {
-            return Ok(pass()
-                .with_code(StatusCode::UNAUTHORIZED.as_u16())
-                .with_message("Invalid password"));
-        }
-
-        let token = jwt_codec.encode_token(&user_secret.f_user_id, app_config.jwt_exp_seconds)?;
+    if let Some(user_id) = user_id {
+        let token = jwt_codec.encode_token(&user_id, app_config.jwt_exp_seconds)?;
 
         transac.commit().await?;
 
@@ -85,25 +70,23 @@ pub async fn sync_user(
 
     // User does not exist, create a new one.
 
-    let password_hash = hash_password(&args.password)?;
-
     let new_user = NewUser {
         f_user_id: args.user_id,
         f_username: args.username,
         f_email: args.email,
-        f_password_hash: password_hash,
     };
 
     query!(
         r#"
-        INSERT INTO t_user (f_user_id, f_username, f_email, f_password_hash)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (f_user_id) DO NOTHING
+        INSERT INTO t_user (f_user_id, f_username, f_email)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (f_user_id) DO UPDATE
+        SET f_username = EXCLUDED.f_username,
+            f_email = EXCLUDED.f_email
         "#,
         new_user.f_user_id,
         new_user.f_username,
         new_user.f_email,
-        new_user.f_password_hash,
     )
     .execute(&mut *transac)
     .await?;

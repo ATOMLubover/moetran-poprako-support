@@ -79,14 +79,14 @@ impl MtrRole {
     // }
 }
 
-/// 语言代码常量
-pub mod mtr_lang {
-    pub const JAPANESE: &str = "ja"; // 日语
-    pub const ZH_CN: &str = "zh-CN"; // 简体中文
-    pub const ZH_TW: &str = "zh-TW"; // 繁体中文
-    pub const KOREAN: &str = "ko"; // 韩语
-    pub const ENGLISH: &str = "en"; // 英语
-}
+// /// 语言代码常量
+// pub mod mtr_lang {
+//     pub const JAPANESE: &str = "ja"; // 日语
+//     pub const ZH_CN: &str = "zh-CN"; // 简体中文
+//     pub const ZH_TW: &str = "zh-TW"; // 繁体中文
+//     pub const KOREAN: &str = "ko"; // 韩语
+//     pub const ENGLISH: &str = "en"; // 英语
+// }
 
 #[derive(Debug, Serialize)]
 pub struct MtrProjectCreatePayload {

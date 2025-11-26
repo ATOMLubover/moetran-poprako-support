@@ -21,7 +21,9 @@ use crate::http::proj::{
     create_proj as http_create_proj, get_projs_by_id as http_get_projs_by_id,
     mark_proj_published as http_mark_proj_published, mark_proj_status as http_mark_proj_status,
 };
-use crate::http::projset::create_projset as http_create_projset;
+use crate::http::projset::{
+    create_projset as http_create_projset, get_projsets_by_team as http_get_projset_by_team,
+};
 use crate::http::user::get_user_info;
 use crate::http::user::sync_user;
 use crate::state::AppState;
@@ -40,12 +42,14 @@ async fn init_router(app_state: &AppState) -> anyhow::Result<Router> {
 
     let proj_router = Router::new()
         .route("/", post(http_create_proj))
-        .route("/batch", post(http_get_projs_by_id))
+        .route("/search", post(http_get_projs_by_id))
         .route("/{proj_id}/assign", post(assign_member))
         .route("/{proj_id}/status", put(http_mark_proj_status))
         .route("/{proj_id}/publish", put(http_mark_proj_published));
 
-    let projset_router = Router::new().route("/", post(http_create_projset));
+    let projset_router = Router::new()
+        .route("/", get(http_get_projset_by_team))
+        .route("/", post(http_create_projset));
 
     let api_router = Router::new()
         .nest("/health", health_router)

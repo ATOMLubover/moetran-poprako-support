@@ -45,7 +45,6 @@ JWT `sub` 字段即用户 `user_id`。
     "user_id": "user_123",      // 唯一用户标识
     "username": "alice",        // 用户名（可与 user_id 相同）
     "email": "alice@example.com",
-    "password": "plaintext"     // 明文密码（传输时需 HTTPS）
 }
 ```
 
@@ -78,7 +77,7 @@ JWT `sub` 字段即用户 `user_id`。
 ```bash
 curl -X POST https://api.poprako.example/api/v1/user/sync \
     -H "Content-Type: application/json" \
-    -d '{"user_id":"user_123","username":"alice","email":"alice@example.com","password":"secret"}'
+    -d '{"user_id":"user_123","username":"alice","email":"alice@example.com"}'
 ```
 
 ### 2. 获取用户信息
@@ -302,6 +301,53 @@ curl -X POST https://api.poprako.example/api/v1/projset/create \
     -H "Authorization: Bearer <jwt>" \
     -H "Content-Type: application/json" \
     -d '{"projset_name":"主线文本","projset_description":"主线剧情相关文本","team_id":"team_a","mtr_token":"<moetran-token>"}'
+```
+
+### 列出团队下的项目集
+
+列出指定团队下的所有项目集（project sets）。返回每个项目集的基本信息与序号。
+
+| 方法 | 路径                 | 认证 | 查询参数 |
+| ---- | -------------------- | ---- | -------- |
+| GET  | `/api/v1/projsets`   | 需要 | `team_id`：目标团队 ID（必填，query 参数） |
+
+说明：
+
+- `team_id`：必填，作为 query 参数传入，例如 `GET /api/v1/projsets?team_id=team_a`。
+
+成功响应示例：
+
+```json
+{
+    "code": 200,
+    "data": {
+        "projsets": [
+            {
+                "projset_id": "projset_123",
+                "projset_name": "主线文本",
+                "projset_description": "主线剧情相关文本",
+                "projset_serial": 3,
+                "team_id": "team_a"
+            }
+        ]
+    }
+}
+```
+
+错误响应：
+
+| 场景                | code | 说明                      |
+| ------------------- | ---- | ------------------------- |
+| 未认证              | 401  | 缺失或非法 JWT            |
+| 团队不存在          | 404  | 未找到对应团队或项目集    |
+| 内部错误            | 500  | 数据库或服务异常          |
+
+示例 cURL：
+
+```bash
+curl -G https://api.poprako.example/api/v1/projsets \
+    -H "Authorization: Bearer <jwt>" \
+    --data-urlencode "team_id=team_a"
 ```
 
 ---
@@ -587,6 +633,8 @@ curl -X POST https://api.poprako.example/api/v1/projs \
 - `1`：`InProgress`（进行中）
 - `2`：`Completed`（已完成）
 
+注意：该枚举在本服务的 HTTP API（请求/响应 JSON）中以整数（`0`/`1`/`2`）表示和传输。
+
 ### MtrAllowApplyType（允许申请方式）
 
 用于创建 Proj 时的 `allow_apply_type` 字段（`ProjCreatePayload` / `MtrProjectCreatePayload`）：
@@ -595,12 +643,22 @@ curl -X POST https://api.poprako.example/api/v1/projs \
 - `1`：`AnyApply` — 任何人都可以申请
 - `2`：`MemberOnly` — 仅组内成员可以申请
 
+说明：
+
+- 对外 API（本服务接收的 `ProjCreatePayload`）使用整数值 `0/1/2`。客户端在向本服务发送创建项目请求时请传入整数。
+- 与尨译（Moetran）平台对接时，本仓库中 `model/moetran.rs` 对应的枚举在发给外部 Moetran 的 JSON 中序列化为 snake_case 字符串（例如：`"no_apply"`、`"any_apply"`、`"member_only"`）。这是服务内部与外部系统交互时的实现细节，客户端无须使用字符串形式。
+
 ### MtrAppliCheckType（申请审核方式）
 
 用于创建 Proj 时的 `application_check_type` 字段：
 
 - `0`：`NonCheck` — 申请自动通过，无需审核
 - `1`：`AdminCheck` — 需要管理员/负责人审核
+
+说明：
+
+- 对外 API（本服务接收的 `ProjCreatePayload`）使用整数值 `0/1`。
+- 在与尨译（Moetran）外部接口交互时，`model/moetran.rs` 中的 `MtrAppliCheckType` 枚举在序列化为 JSON 时采用 snake_case 字符串（例如：`"non_check"`、`"admin_check"`）。
 
 ### MtrRole（默认角色 & 角色常量）
 
@@ -613,7 +671,7 @@ curl -X POST https://api.poprako.example/api/v1/projs \
 - `"63d87c24b8bebd75ff934268"`：`TYPESETTER`   — 嵌字 / 排版
 - `"63d87c24b8bebd75ff934269"`：`INTERN`       — 实习 / 预备成员
 
-客户端在请求体中填写 `default_role` 时必须使用上述字符串之一，否则会在反序列化阶段被直接判为非法请求。
+客户端在请求体中填写 `default_role` 时必须使用上述字符串之一（如 `"63d87c24b8bebd75ff934267"` 对应 `TRANSLATOR`），否则会在反序列化阶段被直接判为非法请求。服务端会严格校验该字符串并在需要时将其转为内部 `MtrRole` 类型并用于对接尨译。
 
 ### 语言代码（mtr_lang）
 
