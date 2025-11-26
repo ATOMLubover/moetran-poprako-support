@@ -11,7 +11,7 @@ use crate::{
     model::{
         member::MemberInfoReply,
         moetran::{MtrProjectCreatePayload, MtrProjectCreateReply},
-        proj::{MarkProjStatusPayload, ProjCreatePayload, ProjCreateReply, ProjInfoReply},
+        proj::{MarkProjStatusPayload, SearchProjPayload, ProjCreatePayload, ProjCreateReply, ProjInfoReply},
     },
     repo::{Repo, member::MemberPerm, proj::ProjBasic},
     service::{ServiceError, ServiceResult, fail, pass},
@@ -133,7 +133,239 @@ pub async fn create_proj(
         }))
 }
 
-pub async fn get_projs_by_id(
+pub async fn search_projs(
+    args: SearchProjPayload,
+    repo: &Repo,
+) -> ServiceResult<Vec<ProjInfoReply>> {
+    // If proj_ids is provided, fetch by ids directly.
+    match args.proj_ids {
+        Some(proj_ids) if !proj_ids.is_empty() => {
+            return get_projs_by_id(proj_ids, repo).await;
+        }
+        _ => {}
+    }
+
+    // Base SQL selecting from t_proj and left joining assignments and users to build members list.
+    let mut sql = String::from(
+        r#"
+        SELECT
+            p.f_proj_id,
+            p.f_proj_name,
+            p.f_projset_id,
+            p.f_projset_serial,
+            p.f_projset_index,
+            p.f_translating_status,
+            p.f_proofreading_status,
+            p.f_typesetting_status,
+            p.f_reviewing_status,
+            p.f_is_published,
+            pa.f_member_id,
+            m.f_is_admin,
+            pa.f_is_translator,
+            pa.f_is_proofreader,
+            pa.f_is_typesetter,
+            pa.f_is_principal,
+            u.f_username
+        FROM t_proj p
+        LEFT JOIN t_proj_assgin pa ON pa.f_proj_id = p.f_proj_id
+        LEFT JOIN t_member m ON m.f_member_id = pa.f_member_id
+        LEFT JOIN t_user u ON u.f_user_id = pa.f_user_id
+        "#,
+    );
+
+    let mut conditions: Vec<String> = Vec::new();
+    
+    // We'll bind parameters in order using a simple enum to keep types.
+    enum Param {
+        Str(String),
+        I32(i32),
+        I64(i64),
+        Bool(bool),
+        StrArray(Vec<String>),
+    }
+
+    let mut bind_params: Vec<Param> = Vec::new();
+
+    // We manually push conditions and keep track of placeholder index.
+    let mut idx: i32 = 1;
+
+    // Fuzzy project name (ILIKE on f_proj_name).
+    if let Some(name) = &args.fuzzy_proj_name {
+        conditions.push(format!("p.f_proj_name ILIKE ${}", idx));
+
+        idx += 1;
+
+        bind_params.push(Param::Str(format!("%{}%", name)));
+    }
+
+    // time_start filters projects created at or after the given unix timestamp (seconds).
+    if let Some(ts) = args.time_start {
+        conditions.push(format!("p.f_created_at >= to_timestamp(${})", idx));
+        idx += 1;
+        bind_params.push(Param::I64(ts));
+    }
+
+    // Status filters
+    if let Some(s) = args.translating_status {
+        conditions.push(format!("p.f_translating_status = ${}", idx));
+
+        idx += 1;
+
+        let v = s as i32;
+
+        bind_params.push(Param::I32(v));
+    }
+    if let Some(s) = args.proofreading_status {
+        conditions.push(format!("p.f_proofreading_status = ${}", idx));
+
+        idx += 1;
+
+        let v = s as i32;
+
+        bind_params.push(Param::I32(v));
+    }
+    if let Some(s) = args.typesetting_status {
+        conditions.push(format!("p.f_typesetting_status = ${}", idx));
+
+        idx += 1;
+
+        let v = s as i32;
+
+        bind_params.push(Param::I32(v));
+    }
+    if let Some(s) = args.reviewing_status {
+        conditions.push(format!("p.f_reviewing_status = ${}", idx));
+
+        idx += 1;
+
+        let v = s as i32;
+
+        bind_params.push(Param::I32(v));
+    }
+
+    if let Some(published) = args.is_published {
+        conditions.push(format!("p.f_is_published = ${}", idx));
+
+        idx += 1;
+
+        bind_params.push(Param::Bool(published));
+
+    }
+
+    // Filter by member ids if provided.
+    if let Some(member_ids) = &args.member_ids {
+        if !member_ids.is_empty() {
+            conditions.push(format!("pa.f_member_id = ANY(${})", idx));
+
+            idx += 1;
+
+            bind_params.push(Param::StrArray(member_ids.clone()));
+        }
+    }
+
+    if !conditions.is_empty() {
+        sql.push_str(" WHERE ");
+        sql.push_str(&conditions.join(" AND "));
+    }
+
+    // Order and pagination.
+    sql.push_str(
+        " ORDER BY p.f_projset_serial, p.f_projset_index LIMIT $" ,
+    );
+    sql.push_str(&idx.to_string());
+
+    idx += 1;
+
+    sql.push_str(" OFFSET $");
+    sql.push_str(&idx.to_string());
+
+    let mut query = sqlx::query_as::<_, Row>(&sql);
+
+    // Bind dynamic params in order with concrete types.
+    for param in bind_params {
+        query = match param {
+            Param::Str(v) => query.bind(v),
+            Param::I32(v) => query.bind(v),
+            Param::I64(v) => query.bind(v),
+            Param::Bool(v) => query.bind(v),
+            Param::StrArray(v) => query.bind(v),
+        };
+    }
+
+    let page = if args.page <= 0 { 1 } else { args.page };
+    let limit = if args.limit <= 0 { 10 } else { args.limit };
+    let offset = (page - 1) * limit;
+
+    query = query.bind(limit).bind(offset);
+
+    // Row mapping struct
+    #[derive(sqlx::FromRow)]
+    struct Row {
+        f_proj_id: String,
+        f_proj_name: String,
+        f_projset_id: String,
+        f_projset_serial: i32,
+        f_projset_index: i32,
+        f_translating_status: i32,
+        f_proofreading_status: i32,
+        f_typesetting_status: i32,
+        f_reviewing_status: i32,
+        f_is_published: bool,
+        f_member_id: Option<String>,
+        f_is_admin: Option<bool>,
+        f_is_translator: Option<bool>,
+        f_is_proofreader: Option<bool>,
+        f_is_typesetter: Option<bool>,
+        f_is_principal: Option<bool>,
+        f_username: Option<String>,
+    }
+
+    let rows: Vec<Row> = query.fetch_all(&*repo.pool()).await?;
+
+    let mut proj_map: HashMap<String, ProjInfoReply> = HashMap::new();
+
+    for r in rows.into_iter() {
+        let entry = proj_map
+            .entry(r.f_proj_id.clone())
+            .or_insert_with(|| ProjInfoReply {
+                proj_id: r.f_proj_id.clone(),
+                proj_name: r.f_proj_name.clone(),
+                description: None,
+                projset_id: r.f_projset_id.clone(),
+                projset_serial: r.f_projset_serial,
+                projset_index: r.f_projset_index,
+                translating_status: r.f_translating_status.into(),
+                proofreading_status: r.f_proofreading_status.into(),
+                typesetting_status: r.f_typesetting_status.into(),
+                reviewing_status: r.f_reviewing_status.into(),
+                is_published: r.f_is_published,
+                members: Vec::new(),
+            });
+
+        if let (Some(member_id), Some(username)) = (r.f_member_id, r.f_username) {
+            entry.members.push(MemberInfoReply {
+                member_id,
+                username,
+                is_admin: r.f_is_admin.unwrap_or(false),
+                is_translator: r.f_is_translator.unwrap_or(false),
+                is_proofreader: r.f_is_proofreader.unwrap_or(false),
+                is_typesetter: r.f_is_typesetter.unwrap_or(false),
+                is_principal: r.f_is_principal.unwrap_or(false),
+            });
+        }
+    }
+
+    let mut result: Vec<ProjInfoReply> = proj_map.into_values().collect();
+    result.sort_by(|a, b| {
+        a.projset_serial
+            .cmp(&b.projset_serial)
+            .then(a.projset_index.cmp(&b.projset_index))
+    });
+
+    Ok(pass().with_data(result))
+}
+
+ async fn get_projs_by_id(
     proj_ids: Vec<String>,
     repo: &Repo,
 ) -> ServiceResult<Vec<ProjInfoReply>> {

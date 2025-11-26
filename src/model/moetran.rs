@@ -59,24 +59,24 @@ impl MtrRole {
     pub const TYPESETTER: &'static str = "63d87c24b8bebd75ff934268";
     pub const INTERN: &'static str = "63d87c24b8bebd75ff934269";
 
-    pub fn admin() -> Self {
-        Self(Self::ADMIN.to_string())
-    }
-    pub fn supervisor() -> Self {
-        Self(Self::PRINCIPAL.to_string())
-    }
-    pub fn proofreader() -> Self {
-        Self(Self::PROOFREADER.to_string())
-    }
-    pub fn translator() -> Self {
-        Self(Self::TRANSLATOR.to_string())
-    }
-    pub fn embedder() -> Self {
-        Self(Self::TYPESETTER.to_string())
-    }
-    pub fn intern() -> Self {
-        Self(Self::INTERN.to_string())
-    }
+    // pub fn admin() -> Self {
+    //     Self(Self::ADMIN.to_string())
+    // }
+    // pub fn supervisor() -> Self {
+    //     Self(Self::PRINCIPAL.to_string())
+    // }
+    // pub fn proofreader() -> Self {
+    //     Self(Self::PROOFREADER.to_string())
+    // }
+    // pub fn translator() -> Self {
+    //     Self(Self::TRANSLATOR.to_string())
+    // }
+    // pub fn embedder() -> Self {
+    //     Self(Self::TYPESETTER.to_string())
+    // }
+    // pub fn intern() -> Self {
+    //     Self(Self::INTERN.to_string())
+    // }
 }
 
 /// 语言代码常量

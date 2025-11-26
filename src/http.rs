@@ -35,7 +35,8 @@ async fn init_router(app_state: &AppState) -> anyhow::Result<Router> {
 
     let member_router = Router::new()
         .route("/{member_id}", get(member::get_member_info))
-        .route("/", get(member::pick_members_by_position));
+        .route("/", get(member::pick_members_by_position))
+        .route("/search", post(member::search_members));
 
     let proj_router = Router::new()
         .route("/", post(http_create_proj))

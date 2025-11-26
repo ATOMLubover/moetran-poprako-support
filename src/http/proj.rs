@@ -9,7 +9,10 @@ use crate::{
     http::result::HttpResult,
     model::{
         auth::Claims,
-        proj::{MarkProjStatusPayload, ProjCreatePayload, ProjCreateReply, ProjInfoReply},
+        proj::{
+            MarkProjStatusPayload, ProjCreatePayload, ProjCreateReply, ProjInfoReply,
+            SearchProjPayload,
+        },
     },
     service,
     state::AppState,
@@ -32,14 +35,12 @@ pub async fn create_proj(
     .into()
 }
 
-/// POST /projs (body: { ids: [..] })
+/// POST /projs
 pub async fn get_projs_by_id(
     State(state): State<AppState>,
-    Json(body): Json<HashMap<String, Vec<String>>>,
+    Json(payload): Json<SearchProjPayload>,
 ) -> HttpResult<Vec<ProjInfoReply>> {
-    let ids = body.get("ids").cloned().unwrap_or_default();
-
-    service::get_projs_by_id(ids, state.repo()).await.into()
+    service::search_projs(payload, state.repo()).await.into()
 }
 
 /// PUT /projs/:proj_id/status

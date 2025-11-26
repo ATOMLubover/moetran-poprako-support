@@ -168,6 +168,94 @@ curl -G https://api.poprako.example/api/v1/member/info \
 
 ---
 
+### 4. 按条件筛选成员列表
+
+按团队、职位及用户名模糊查询成员列表，返回简要信息（`member_id` 与 `username`）。本服务同时支持两种调用方式：
+
+- JSON POST（推荐，用于复杂或较长参数）：`POST /api/v1/members/search`
+- 兼容的 Query GET（旧接口包装）：`GET /api/v1/members`（查询字符串）
+
+1) JSON POST（`PickMemberPayload`）
+
+| 方法 | 路径                        | 认证 |
+| ---- | --------------------------- | ---- |
+| POST | `/api/v1/members/search`    | 需要 |
+
+请求体（JSON，`PickMemberPayload`）：
+
+```json
+{
+    "team_id": "team_a",           // 必填
+    "position": "translator",      // 可选：translator/proofreader/typesetter/principal
+    "fuzzy_name": "ali",           // 可选，用户名模糊匹配
+    "page": 1,
+    "limit": 20
+}
+```
+
+说明：
+
+- `team_id`：所属团队 ID，必填。
+- `position`：可选职位过滤，取值：`translator` / `proofreader` / `typesetter` / `principal`。
+- `fuzzy_name`：可选用户名模糊匹配关键字，对应 `u.f_username ILIKE '%fuzzy_name%'`。
+    - 若不传，则不按职位过滤。
+    - 若与 `position` 一起传入，则先按职位，再按用户名模糊过滤。
+    - 若仅传 `fuzzy_name`，则仅按用户名模糊 + team 过滤。
+- `page`：页码，从 1 开始，默认 1。
+- `limit`：每页条数，默认 10。
+
+成功响应示例：
+
+```json
+{
+    "code": 200,
+    "data": [
+        { "member_id": "member_1", "username": "alice" },
+        { "member_id": "member_2", "username": "alice_2" }
+    ]
+}
+```
+
+错误响应：
+
+| 场景                | code | 说明                      |
+| ------------------- | ---- | ------------------------- |
+| 未认证              | 401  | 缺失或非法 JWT            |
+| team_id 缺失        | 422  | 请求体解析失败或缺少必填字段 |
+| position 非法取值   | 400  | Invalid position          |
+| 内部错误            | 500  | 数据库或服务异常          |
+
+示例 cURL（POST）：
+
+```bash
+curl -X POST https://api.poprako.example/api/v1/members/search \
+    -H "Authorization: Bearer <jwt>" \
+    -H "Content-Type: application/json" \
+    -d '{"team_id":"team_a","position":"translator","fuzzy_name":"ali","page":1,"limit":20}'
+```
+
+兼容 GET 查询（旧版包装）
+
+| 方法 | 路径                 | 认证 | 查询参数示例 |
+| ---- | -------------------- | ---- | ------------- |
+| GET  | `/api/v1/members`    | 需要 | `team_id`, `position`, `fuzzy_name`, `page`, `limit` |
+
+说明：GET 形式是对 `PickMemberPayload` 的简单 query-string 包装，行为与 POST 相同，但适合短查询或兼容旧客户端。`team_id` 仍为必填查询参数；`position` 与 `fuzzy_name` 可选。
+
+示例 cURL（GET）：
+
+```bash
+curl -G https://api.poprako.example/api/v1/members \
+    -H "Authorization: Bearer <jwt>" \
+    --data-urlencode "team_id=team_a" \
+    --data-urlencode "position=translator" \
+    --data-urlencode "fuzzy_name=ali" \
+    --data-urlencode "page=1" \
+    --data-urlencode "limit=20"
+```
+
+---
+
 ## ProjSet 部分
 
 ### 4. 创建项目集 (Project Set)
@@ -273,11 +361,197 @@ curl -X POST https://api.poprako.example/api/v1/projset/create \
 cURL 示例：
 
 ```bash
-curl -X POST https://api.poprako.example/api/v1/proj/create \
+curl -X POST https://api.poprako.example/api/v1/projs \
     -H "Authorization: Bearer <jwt>" \
     -H "Content-Type: application/json" \
-    -d '{"proj_name":"章节1对话","proj_description":"第一章主要对话文本","team_id":"team_a","projset_id":"projset_123","mtr_auth":"<moetran-token>","workset_index":0,"source_language":"ja","target_languages":["zh_CN"],"allow_apply_type":1,"application_check_type":0,"default_role":"translator"}'
+        -d '{"proj_name":"章节1对话","proj_description":"第一章主要对话文本","team_id":"team_a","projset_id":"projset_123","mtr_auth":"<moetran-token>","source_language":"ja","target_languages":["zh_CN"],"allow_apply_type":1,"application_check_type":0,"default_role":"translator"}'
 ```
+
+### 6. 搜索/筛选项目列表
+
+通用的项目搜索接口：支持按项目 ID 列表直接查询，也支持按项目名模糊、各流程状态、是否已发布、参与成员 ID、以及创建时间起点等条件筛选并分页返回项目信息与参与成员列表。
+
+| 方法 | 路径             | 认证 |
+| ---- | ---------------- | ---- |
+| POST | `/api/v1/projs/search`  | 需要 |
+
+请求体（JSON，`PickProjPayload`）：
+
+```json
+{
+    "proj_ids": ["proj_id_1", "proj_id_2"],      // 可选：若提供且非空，则直接按 ID 列表查询（忽略其他筛选条件）
+    "fuzzy_proj_name": "章节1",                   // 可选，模糊匹配项目名（ILIKE '%...%'）
+    "translating_status": 0,                        // 可选，0/1/2
+    "proofreading_status": 0,                       // 可选，0/1/2
+    "typesetting_status": 0,                        // 可选，0/1/2
+    "reviewing_status": 0,                          // 可选，0/1/2
+    "is_published": false,                          // 可选
+    "member_ids": ["member_1", "member_2"],     // 可选：仅返回包含这些成员分配记录的项目
+    "time_start": 1690000000,                       // 可选：Unix 秒，返回创建时间 >= 该时间的项目
+    "page": 1,
+    "limit": 10
+}
+```
+
+说明：
+
+- `proj_ids`：若提供且非空，接口会短路为按 ID 批量查询（功能等同于旧的 batch 接口）。
+- `fuzzy_proj_name`：对 `f_proj_name` 做 ILIKE 模糊匹配。
+- 各 `*_status` 字段使用 `ProjStatus` 枚举值（`0/1/2`）。
+- `time_start`：Unix 时间戳（秒），用于筛选 `f_created_at >= to_timestamp(time_start)` 的项目。
+- 分页：`page` 从 1 开始，`limit` 默认 10。
+
+成功响应示例：
+
+```json
+{
+    "code": 200,
+    "data": [
+        {
+            "proj_id": "proj_id_1",
+            "proj_name": "章节1对话",
+            "description": null,
+            "projset_id": "projset_123",
+            "projset_serial": 3,
+            "projset_index": 5,
+            "translating_status": 0,
+            "proofreading_status": 0,
+            "typesetting_status": 0,
+            "reviewing_status": 0,
+            "is_published": false,
+            "members": [
+                {
+                    "member_id": "member_1",
+                    "username": "alice",
+                    "is_admin": false,
+                    "is_translator": true,
+                    "is_proofreader": false,
+                    "is_typesetter": false,
+                    "is_principal": true
+                }
+            ]
+        }
+    ]
+}
+```
+
+错误响应：
+
+| 场景          | code | 说明                     |
+| ------------- | ---- | ------------------------ |
+| 未认证        | 401  | 缺失或非法 JWT           |
+| JSON 解析失败 | 422  | 请求体格式错误或必填字段缺失 |
+| 内部错误      | 500  | 数据库或服务异常         |
+
+### 7. 更新项目流程状态
+
+仅项目负责人（principal）可以修改项目的某个流程状态（翻译/校对/排版/Review）。状态值采用枚举：`0=未开始`、`1=进行中`、`2=已完成`。
+
+| 方法 | 路径                             | 认证 |
+| ---- | -------------------------------- | ---- |
+| PUT  | `/api/v1/projs/{proj_id}/status` | 需要 |
+
+请求体（JSON）：
+
+```json
+{
+    "proj_id": "proj_id_1",           // 会被路径中的 proj_id 覆盖
+    "status_type": "translating",     // translating / proofreading / typesetting / reviewing
+    "new_status": 1                     // 0,1,2 分别代表 未开始/进行中/已完成
+}
+```
+
+成功响应：
+
+```json
+{
+    "code": 204,
+    "data": null
+}
+```
+
+错误响应：
+
+| 场景             | code | message                                            |
+| ---------------- | ---- | -------------------------------------------------- |
+| 未认证           | 401  | 缺失或非法 JWT                                     |
+| 非项目负责人     | 403  | Only project principals can update project status. |
+| status_type 非法 | 400  | Invalid status_type                                |
+| JSON 解析失败    | 422  | Unprocessable entity                               |
+| 内部错误         | 500  | Internal server error                              |
+
+### 8. 标记项目为已发布
+
+仅项目负责人可以将项目标记为已发布，操作会将 `f_is_published` 字段置为 `true`。
+
+| 方法 | 路径                              | 认证 |
+| ---- | --------------------------------- | ---- |
+| PUT  | `/api/v1/projs/{proj_id}/publish` | 需要 |
+
+请求体：无（仅依赖路径和 JWT）。
+
+成功响应：
+
+```json
+{
+    "code": 204,
+    "data": null
+}
+```
+
+错误响应：
+
+| 场景         | code | message                                       |
+| ------------ | ---- | --------------------------------------------- |
+| 未认证       | 401  | 缺失或非法 JWT                                |
+| 非项目负责人 | 403  | Only project principals can publish projects. |
+| 项目不存在   | 404  | Resource not found（实现层视情况返回）        |
+| 内部错误     | 500  | Internal server error                         |
+
+---
+
+## Assign 部分
+
+### 9. 指派成员到项目
+
+仅项目负责人可以为项目指派或更新成员角色。若该成员在目标团队中不存在、或不具备请求中的角色能力，则会返回相应错误。
+
+| 方法 | 路径                             | 认证 |
+| ---- | -------------------------------- | ---- |
+| POST | `/api/v1/projs/{proj_id}/assign` | 需要 |
+
+请求体（JSON）：
+
+```json
+{
+    "proj_id": "proj_id_1",        // 会被路径中的 proj_id 覆盖
+    "member_id": "member_1",       // 目标成员 ID
+    "is_translator": true,
+    "is_proofreader": false,
+    "is_typesetter": false,
+    "is_principal": true
+}
+```
+
+成功响应：
+
+```json
+{
+    "code": 204,
+    "data": null
+}
+```
+
+错误响应：
+
+| 场景                               | code    | message                                     |
+| ---------------------------------- | ------- | ------------------------------------------- |
+| 未认证                             | 401     | 缺失或非法 JWT                              |
+| 操作人不是该项目的负责人           | 403     | Only project principals can assign members. |
+| 成员不属于该项目所在团队           | 400/404 | Member not found in project team            |
+| 请求设置角色但成员并不具备对应能力 | 400     | 例如：Member is not a translator            |
+| JSON 解析失败                      | 422     | Unprocessable entity                        |
+| 内部错误                           | 500     | Internal server error                       |
 
 ---
 
@@ -298,6 +572,60 @@ curl -X POST https://api.poprako.example/api/v1/proj/create \
 - 所有失败响应都包含 `message` 字段；
 - 成功响应无 `message`（或忽略）；
 - 列表等复杂接口今后会在 `data` 中扩展分页字段（如 `items`, `total`, `page`, `size`）。
+
+---
+
+## 枚举与取值说明
+
+以下枚举会在多个接口的请求或响应中出现，客户端应按本节约定的取值来构造或解析字段。
+
+### ProjStatus（项目流程状态）
+
+用于 `ProjInfoReply` 中的各流程状态字段，以及 `MarkProjStatusPayload.new_status`：
+
+- `0`：`NotStarted`（未开始）
+- `1`：`InProgress`（进行中）
+- `2`：`Completed`（已完成）
+
+### MtrAllowApplyType（允许申请方式）
+
+用于创建 Proj 时的 `allow_apply_type` 字段（`ProjCreatePayload` / `MtrProjectCreatePayload`）：
+
+- `0`：`NoApply` — 不接受任何申请
+- `1`：`AnyApply` — 任何人都可以申请
+- `2`：`MemberOnly` — 仅组内成员可以申请
+
+### MtrAppliCheckType（申请审核方式）
+
+用于创建 Proj 时的 `application_check_type` 字段：
+
+- `0`：`NonCheck` — 申请自动通过，无需审核
+- `1`：`AdminCheck` — 需要管理员/负责人审核
+
+### MtrRole（默认角色 & 角色常量）
+
+`default_role` 字段以及内部与尨译角色对接时使用的角色常量，目前定义为一组固定字符串 ID：
+
+- `"63d87c24b8bebd75ff934264"`：`ADMIN`        — 管理员
+- `"63d87c24b8bebd75ff934265"`：`PRINCIPAL`    — 负责人（principal）
+- `"63d87c24b8bebd75ff934266"`：`PROOFREADER`  — 校对
+- `"63d87c24b8bebd75ff934267"`：`TRANSLATOR`   — 翻译
+- `"63d87c24b8bebd75ff934268"`：`TYPESETTER`   — 嵌字 / 排版
+- `"63d87c24b8bebd75ff934269"`：`INTERN`       — 实习 / 预备成员
+
+客户端在请求体中填写 `default_role` 时必须使用上述字符串之一，否则会在反序列化阶段被直接判为非法请求。
+
+### 语言代码（mtr_lang）
+
+与尨译对接时推荐使用的语言代码常量（`source_language` / `target_languages`）：
+
+- `"ja"`：日语
+- `"zh-CN"`：简体中文
+- `"zh-TW"`：繁体中文
+- `"ko"`：韩语
+- `"en"`：英语
+
+其他语言可按尨译平台支持的语言代码扩展，客户端应与具体部署环境约定。
 
 ---
 

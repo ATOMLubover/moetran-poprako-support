@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
@@ -15,4 +16,15 @@ pub struct MemberInfoReply {
 pub struct MemberAbstract {
     pub member_id: String,
     pub username: String,
+}
+
+/// Payload used for member search requests.
+#[derive(Debug, Deserialize)]
+pub struct SearchMemberPayload {
+    pub team_id: String,
+    pub position: Option<String>,
+    pub fuzzy_name: Option<String>,
+
+    pub page: Option<i64>,
+    pub limit: Option<i64>,
 }

@@ -203,3 +203,23 @@ pub struct MarkProjStatusPayload {
     pub status_type: String,
     pub new_status: ProjStatus,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct SearchProjPayload {
+    pub proj_ids: Option<Vec<String>>,
+
+    pub fuzzy_proj_name: Option<String>,
+
+    pub translating_status: Option<ProjStatus>,
+    pub proofreading_status: Option<ProjStatus>,
+    pub typesetting_status: Option<ProjStatus>,
+    pub reviewing_status: Option<ProjStatus>,
+    pub is_published: Option<bool>,
+
+    pub member_ids: Option<Vec<String>>,
+
+    pub time_start: Option<i64>,
+
+    pub page: i64,
+    pub limit: i64,
+}
