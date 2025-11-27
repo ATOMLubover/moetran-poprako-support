@@ -19,7 +19,13 @@ pub async fn assign_member(
     // Ensure proj_id from path is used as the target project.
     payload.proj_id = proj_id;
 
-    service::assign_member(claims.sub, payload, state.repo())
-        .await
-        .into()
+    service::assign_member(
+        state.crawler(),
+        state.config(),
+        claims.sub,
+        payload,
+        state.repo(),
+    )
+    .await
+    .into()
 }

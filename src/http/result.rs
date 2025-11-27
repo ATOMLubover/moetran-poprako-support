@@ -34,6 +34,8 @@ where
     T: Serialize,
 {
     fn from(err: ServiceError) -> Self {
+        tracing::error!("ServiceError encountered: {:?}", err);
+
         match err {
             ServiceError::GenericError(msg) => HttpResult {
                 code: StatusCode::BAD_REQUEST.as_u16(),
@@ -53,11 +55,6 @@ where
             },
             ServiceError::JwtCodecError(_) => HttpResult {
                 code: StatusCode::UNAUTHORIZED.as_u16(),
-                message: None,
-                data: None,
-            },
-            ServiceError::PasswordHashError(_) => HttpResult {
-                code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
                 message: None,
                 data: None,
             },

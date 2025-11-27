@@ -1,9 +1,6 @@
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::model::{
-    member::MemberInfoReply,
-    moetran::{MtrAllowApplyType, MtrAppliCheckType, MtrRole},
-};
+use crate::model::{member::MemberInfoReply, moetran::MtrRole};
 
 #[derive(Debug)]
 pub struct ProjCreatePayload {
@@ -18,9 +15,6 @@ pub struct ProjCreatePayload {
     pub source_language: String,
     pub target_languages: Vec<String>,
 
-    pub allow_apply_type: MtrAllowApplyType,
-    pub application_check_type: MtrAppliCheckType,
-
     pub default_role: MtrRole,
 }
 
@@ -31,49 +25,59 @@ impl<'de> Deserialize<'de> for ProjCreatePayload {
     {
         #[derive(Deserialize)]
         struct RawProjCreatePayload {
+            #[serde(alias = "projName")]
             proj_name: String,
+            #[serde(alias = "projDescription")]
             proj_description: Option<String>,
 
+            #[serde(alias = "teamId")]
             team_id: String,
+            #[serde(alias = "projsetId")]
             projset_id: String,
 
+            #[serde(alias = "mtrAuth")]
             mtr_auth: String,
 
+            #[serde(alias = "sourceLanguage")]
             source_language: String,
+            #[serde(alias = "targetLanguages")]
             target_languages: Vec<String>,
 
+            #[serde(alias = "allowApplyType")]
             allow_apply_type: i32,
+            #[serde(alias = "applicationCheckType")]
             application_check_type: i32,
 
+            #[serde(alias = "defaultRole")]
             default_role: String,
         }
 
         let raw = RawProjCreatePayload::deserialize(deserializer)?;
 
-        // Validate allow_apply_type and map to enum
-        let allow_apply_type = match raw.allow_apply_type {
-            0 => MtrAllowApplyType::NoApply,
-            1 => MtrAllowApplyType::AnyApply,
-            2 => MtrAllowApplyType::MemberOnly,
-            other => {
-                return Err(serde::de::Error::custom(format!(
-                    "Invalid allow_apply_type value: {}",
-                    other
-                )));
-            }
-        };
+        // // Validate allow_apply_type and map to enum
+        // let allow_apply_type = match raw.allow_apply_type {
+        //     0 => MtrAllowApplyType::NoApply,
+        //     1 => MtrAllowApplyType::AnyApply,
+        //     2 => MtrAllowApplyType::MemberOnly,
+        //     other => {
+        //         return Err(serde::de::Error::custom(format!(
+        //             "Invalid allow_apply_type value: {}",
+        //             other
+        //         )));
+        //     }
+        // };
 
-        // Validate application_check_type and map to enum
-        let application_check_type = match raw.application_check_type {
-            0 => MtrAppliCheckType::NonCheck,
-            1 => MtrAppliCheckType::AdminCheck,
-            other => {
-                return Err(serde::de::Error::custom(format!(
-                    "Invalid application_check_type value: {}",
-                    other
-                )));
-            }
-        };
+        // // Validate application_check_type and map to enum
+        // let application_check_type = match raw.application_check_type {
+        //     0 => MtrAppliCheckType::NonCheck,
+        //     1 => MtrAppliCheckType::AdminCheck,
+        //     other => {
+        //         return Err(serde::de::Error::custom(format!(
+        //             "Invalid application_check_type value: {}",
+        //             other
+        //         )));
+        //     }
+        // };
 
         // Validate default_role must be one of known role constants and wrap as MtrRole
         let valid_roles = [
@@ -109,8 +113,6 @@ impl<'de> Deserialize<'de> for ProjCreatePayload {
             mtr_auth: raw.mtr_auth,
             source_language: raw.source_language,
             target_languages: raw.target_languages,
-            allow_apply_type,
-            application_check_type,
             default_role,
         })
     }
@@ -118,6 +120,7 @@ impl<'de> Deserialize<'de> for ProjCreatePayload {
 
 #[derive(Debug, Serialize)]
 pub struct ProjCreateReply {
+    pub proj_id: String,
     pub proj_serial: i32,
     pub projset_index: i32,
 }
@@ -197,29 +200,41 @@ pub struct ProjInfoReply {
 
 #[derive(Debug, Deserialize)]
 pub struct MarkProjStatusPayload {
+    #[serde(alias = "projId")]
     pub proj_id: String,
     /// Available values: "translating", "proofreading",
     /// "typesetting", "reviewing"
+    #[serde(alias = "statusType")]
     pub status_type: String,
+    #[serde(alias = "newStatus")]
     pub new_status: ProjStatus,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct SearchProjPayload {
+    #[serde(alias = "projIds")]
     pub proj_ids: Option<Vec<String>>,
 
+    #[serde(alias = "fuzzyProjName")]
     pub fuzzy_proj_name: Option<String>,
 
+    #[serde(alias = "translatingStatus")]
     pub translating_status: Option<ProjStatus>,
+    #[serde(alias = "proofreadingStatus")]
     pub proofreading_status: Option<ProjStatus>,
+    #[serde(alias = "typesettingStatus")]
     pub typesetting_status: Option<ProjStatus>,
+    #[serde(alias = "reviewingStatus")]
     pub reviewing_status: Option<ProjStatus>,
+    #[serde(alias = "isPublished")]
     pub is_published: Option<bool>,
 
+    #[serde(alias = "memberIds")]
     pub member_ids: Option<Vec<String>>,
 
+    #[serde(alias = "timeStart")]
     pub time_start: Option<i64>,
 
-    pub page: i64,
-    pub limit: i64,
+    pub page: Option<i64>,
+    pub limit: Option<i64>,
 }

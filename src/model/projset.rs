@@ -2,9 +2,13 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProjSetCreatePayload {
+    #[serde(alias = "projsetName")]
     pub projset_name: String,
+    #[serde(alias = "projsetDescription")]
     pub projset_description: Option<String>,
+    #[serde(alias = "teamId")]
     pub team_id: String,
+    #[serde(alias = "mtrToken")]
     pub mtr_token: String,
 }
 

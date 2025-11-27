@@ -2,6 +2,8 @@ use axum::{
     Extension, Json,
     extract::{Path, Query, State},
 };
+use reqwest::StatusCode;
+use std::collections::HashMap;
 
 use crate::{
     http::result::HttpResult,
@@ -32,8 +34,19 @@ pub async fn create_projset(
 
 pub async fn get_projsets_by_team(
     State(state): State<AppState>,
-    Query(team_id): Query<String>,
+    Query(params): Query<HashMap<String, String>>,
 ) -> HttpResult<TeamProjSetReply> {
+    let team_id = match params.get("team_id") {
+        Some(t) => t.clone(),
+        None => {
+            return HttpResult::new(
+                StatusCode::BAD_REQUEST,
+                Some("Missing team_id query parameter.".to_string()),
+                None,
+            );
+        }
+    };
+
     service::get_projsets_by_team(team_id, state.repo())
         .await
         .into()

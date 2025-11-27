@@ -19,8 +19,19 @@ use crate::{
 pub async fn get_member_info(
     State(state): State<AppState>,
     Extension(claims): Extension<Claims>,
-    Query(team_id): Query<String>,
+    Query(params): Query<HashMap<String, String>>,
 ) -> HttpResult<MemberInfoReply> {
+    let team_id = match params.get("team_id") {
+        Some(tid) => tid.clone(),
+        None => {
+            return HttpResult::new(
+                StatusCode::BAD_REQUEST,
+                Some("Missing team_id parameter.".to_string()),
+                None,
+            );
+        }
+    };
+
     service::get_member_info(claims.sub, team_id, state.repo())
         .await
         .into()
@@ -61,7 +72,7 @@ pub async fn pick_members_by_position(
         .and_then(|l| l.parse::<i64>().ok())
         .unwrap_or(10);
 
-    let payload = crate::model::member::SearchMemberPayload {
+    let payload = SearchMemberPayload {
         team_id,
         position,
         fuzzy_name,

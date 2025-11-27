@@ -21,8 +21,10 @@ pub struct MemberAbstract {
 /// Payload used for member search requests.
 #[derive(Debug, Deserialize)]
 pub struct SearchMemberPayload {
+    #[serde(alias = "teamId")]
     pub team_id: String,
     pub position: Option<String>,
+    #[serde(alias = "fuzzyName")]
     pub fuzzy_name: Option<String>,
 
     pub page: Option<i64>,

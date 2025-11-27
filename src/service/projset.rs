@@ -25,9 +25,15 @@ async fn create_mtr_projset(
     auth: &str,
     name: &str,
 ) -> Result<String, ServiceError> {
-    let url = Url::parse(base_url)?;
+    let mut url = Url::parse(base_url)?;
 
-    let url = url.join("teams")?.join(team_id)?.join("project-sets")?;
+    url.path_segments_mut()
+        .map_err(|_| {
+            ServiceError::GenericError("Invalid base_url for path modifications".to_string())
+        })?
+        .push("teams")
+        .push(team_id)
+        .push("project-sets");
 
     let mtr_payload = MtrProjSetCreatePayload {
         name: name.to_owned(),

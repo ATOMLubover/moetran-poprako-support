@@ -28,8 +28,6 @@ pub enum ServiceError {
     DatabaseError(#[from] sqlx::Error),
     #[error("JWT codec error: {0}")]
     JwtCodecError(#[from] crate::jwt::Error),
-    #[error("Argon2 password hash error: {0}")]
-    PasswordHashError(#[from] argon2::password_hash::Error),
     #[error("HTTP request error: {0}")]
     HttpRequestError(#[from] reqwest::Error),
     #[error("URL parse error: {0}")]

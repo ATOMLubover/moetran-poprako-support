@@ -19,34 +19,34 @@ pub struct MtrProjSetInfoReply {
     pub id: String,
 }
 
-// ==== Project-related enums & DTOs ====
+// // ==== Project-related enums & DTOs ====
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MtrAppliCheckType {
-    NonCheck = 0,
-    AdminCheck = 1,
-}
+// #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+// #[serde(rename_all = "snake_case")]
+// pub enum MtrAppliCheckType {
+//     NonCheck = 0,
+//     AdminCheck = 1,
+// }
 
-impl MtrAppliCheckType {
-    pub fn as_i32(self) -> i32 {
-        self as i32
-    }
-}
+// impl MtrAppliCheckType {
+//     pub fn as_i32(self) -> i32 {
+//         self as i32
+//     }
+// }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MtrAllowApplyType {
-    NoApply = 0,
-    AnyApply = 1,
-    MemberOnly = 2,
-}
+// #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+// #[serde(rename_all = "snake_case")]
+// pub enum MtrAllowApplyType {
+//     NoApply = 0,
+//     AnyApply = 1,
+//     MemberOnly = 2,
+// }
 
-impl MtrAllowApplyType {
-    pub fn as_i32(self) -> i32 {
-        self as i32
-    }
-}
+// impl MtrAllowApplyType {
+//     pub fn as_i32(self) -> i32 {
+//         self as i32
+//     }
+// }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MtrRole(pub String);
@@ -110,4 +110,17 @@ pub struct MtrProjectCreateReply {
 #[derive(Debug, Deserialize)]
 pub struct MtrProjectInfoReply {
     pub id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MtrInviteMemberRequest {
+    pub user_id: String,
+    // Moetran expects `role_id` and an invitation `message`.
+    pub role_id: String,
+    pub message: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MtrInviteMemberReply {
+    pub message: String,
 }

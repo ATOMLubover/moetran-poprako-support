@@ -14,7 +14,6 @@ use crate::state::AppState;
 
 /// Authentication middleware to validate JWT tokens in the Authorization header.
 /// The format of token is expected to be "Bearer <token>".
-#[tracing::instrument(level = "debug", skip(state, req, next))]
 pub async fn auth_middleware(
     State(state): State<AppState>,
     TypedHeader(auth): TypedHeader<Authorization<Bearer>>,

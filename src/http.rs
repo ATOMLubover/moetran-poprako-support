@@ -36,7 +36,7 @@ async fn init_router(app_state: &AppState) -> anyhow::Result<Router> {
     let user_router = Router::new().route("/{user_id}", get(get_user_info));
 
     let member_router = Router::new()
-        .route("/{member_id}", get(member::get_member_info))
+        .route("/info", get(member::get_member_info))
         .route("/", get(member::pick_members_by_position))
         .route("/search", post(member::search_members));
 

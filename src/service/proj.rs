@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use axum::http::StatusCode;
 use reqwest::{Client, Url};
-use sqlx::{ query, query_as};
+use sqlx::{query, query_as};
 
 use crate::{
     cache::{Cache, project::fetch_add_projset_index},
@@ -11,7 +11,10 @@ use crate::{
     model::{
         member::MemberInfoReply,
         moetran::{MtrProjectCreatePayload, MtrProjectCreateReply},
-        proj::{MarkProjStatusPayload, SearchProjPayload, ProjCreatePayload, ProjCreateReply, ProjInfoReply},
+        proj::{
+            MarkProjStatusPayload, ProjCreatePayload, ProjCreateReply, ProjInfoReply,
+            SearchProjPayload,
+        },
     },
     repo::{Repo, member::MemberPerm, proj::ProjBasic},
     service::{ServiceError, ServiceResult, fail, pass},
@@ -25,18 +28,56 @@ async fn create_mtr_project(
     auth: &str,
     payload: &MtrProjectCreatePayload,
 ) -> Result<String, ServiceError> {
-    let url = Url::parse(base_url)?;
+    let mut url = Url::parse(base_url)?;
 
-    let url = url.join("teams")?.join(team_id)?.join("projects")?;
+    // Append path segments safely using the url crate's path_segments_mut API
+    // instead of concatenating strings. This avoids Url::join's surprising
+    // replacement behavior when joining multiple times.
+    url.path_segments_mut()
+        .map_err(|_| {
+            ServiceError::GenericError("Invalid base_url for path modifications".to_string())
+        })?
+        .push("teams")
+        .push(team_id)
+        .push("projects");
+
+    // Normalize token: allow caller to pass either the raw token or
+    // the full header value "Bearer <token>". Avoid sending
+    // "Bearer Bearer <token>" to the external API.
+    let token = auth.strip_prefix("Bearer ").unwrap_or(auth);
+
+    tracing::debug!(
+        ?url,
+        ?base_url,
+        "Creating Moetran project with payload: {:?}",
+        payload
+    );
 
     let response = client
         .post(url)
         .json(payload)
-        .bearer_auth(auth)
+        .bearer_auth(token)
         .send()
         .await?;
 
-    let response = response.error_for_status()?;
+    // If the external API returned a non-success status, capture
+    // the response body for logging and return a readable error.
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "<could not read body>".to_string());
+        tracing::warn!(
+            "Moetran project create failed: status = {}, body = {}",
+            status,
+            body
+        );
+        return Err(ServiceError::GenericError(format!(
+            "Moetran API error: {} - {}",
+            status, body
+        )));
+    }
 
     let reply: MtrProjectCreateReply = response.json().await?;
 
@@ -98,10 +139,12 @@ pub async fn create_proj(
         project_set: args.projset_id,
         source_language: args.source_language,
         target_languages: args.target_languages,
-        allow_apply_type: args.allow_apply_type.as_i32(),
-        application_check_type: args.application_check_type.as_i32(),
+        allow_apply_type: 3,
+        application_check_type: 1,
         default_role: args.default_role.0,
     };
+
+    tracing::debug!("Creating Moetran project with payload: {:?}", mtr_payload);
 
     let project_id = create_mtr_project(
         crawler.client(),
@@ -112,10 +155,12 @@ pub async fn create_proj(
     )
     .await?;
 
+    tracing::debug!("Moetran project created with ID: {}", project_id);
+
     // Create the project record in our database.
     query!(
         r#"
-        INSERT INTO t_proj (f_proj_id, f_proj_name,  f_projset_serial, f_projset_index, f_projset_id)
+        INSERT INTO t_proj (f_proj_id, f_proj_name, f_projset_serial, f_projset_index, f_projset_id)
         VALUES ($1, $2, $3, $4, $5)
         "#,
         project_id,
@@ -124,12 +169,49 @@ pub async fn create_proj(
         projset_index,
         mtr_payload.project_set,
     )
-    .execute(&*repo.pool()) 
+    .execute(&*repo.pool())
+    .await?;
+
+    // Ensure the creating user is assigned to the project as a principal.
+    // This upsert mirrors the behavior in `service::assign::assign_member`.
+    query!(
+        r#"
+        INSERT INTO t_proj_assgin (
+            f_proj_assgin_id,
+            f_proj_id,
+            f_user_id,
+            f_is_translator,
+            f_is_proofreader,
+            f_is_typesetter,
+            f_is_principal
+        )
+        VALUES (
+            gen_random_uuid()::text,
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            $6
+        )
+        ON CONFLICT (f_proj_id, f_user_id)
+        DO UPDATE SET
+            f_is_principal = EXCLUDED.f_is_principal
+        "#,
+        project_id,
+        user_id,
+        false, // is_translator
+        false, // is_proofreader
+        false, // is_typesetter
+        true,  // is_principal => creator becomes principal
+    )
+    .execute(&*repo.pool())
     .await?;
 
     Ok(pass()
         .with_code(StatusCode::CREATED.as_u16())
         .with_data(ProjCreateReply {
+            proj_id: project_id,
             proj_serial: serial,
             projset_index,
         }))
@@ -176,7 +258,7 @@ pub async fn search_projs(
     );
 
     let mut conditions: Vec<String> = Vec::new();
-    
+
     // We'll bind parameters in order using a simple enum to keep types.
     enum Param {
         Str(String),
@@ -251,7 +333,6 @@ pub async fn search_projs(
         idx += 1;
 
         bind_params.push(Param::Bool(published));
-
     }
 
     // Filter by member ids if provided.
@@ -271,9 +352,7 @@ pub async fn search_projs(
     }
 
     // Order and pagination.
-    sql.push_str(
-        " ORDER BY p.f_projset_serial, p.f_projset_index LIMIT $" ,
-    );
+    sql.push_str(" ORDER BY p.f_projset_serial, p.f_projset_index LIMIT $");
     sql.push_str(&idx.to_string());
 
     idx += 1;
@@ -294,8 +373,8 @@ pub async fn search_projs(
         };
     }
 
-    let page = if args.page <= 0 { 1 } else { args.page };
-    let limit = if args.limit <= 0 { 10 } else { args.limit };
+    let page = args.page.unwrap_or(1).max(1);
+    let limit = args.limit.unwrap_or(10).max(1);
     let offset = (page - 1) * limit;
 
     query = query.bind(limit).bind(offset);
@@ -367,10 +446,7 @@ pub async fn search_projs(
     Ok(pass().with_data(result))
 }
 
- async fn get_projs_by_id(
-    proj_ids: Vec<String>,
-    repo: &Repo,
-) -> ServiceResult<Vec<ProjInfoReply>> {
+async fn get_projs_by_id(proj_ids: Vec<String>, repo: &Repo) -> ServiceResult<Vec<ProjInfoReply>> {
     if proj_ids.is_empty() {
         return Ok(pass().with_data(Vec::new()));
     }
@@ -474,9 +550,13 @@ pub async fn search_projs(
     }
 
     let mut result: Vec<ProjInfoReply> = proj_map.into_values().collect();
-   
+
     // Optional deterministic order: sort by proj_serial then projset_index.
-    result.sort_by(|a, b| a.projset_serial.cmp(&b.projset_serial).then(a.projset_index.cmp(&b.projset_index)));
+    result.sort_by(|a, b| {
+        a.projset_serial
+            .cmp(&b.projset_serial)
+            .then(a.projset_index.cmp(&b.projset_index))
+    });
 
     Ok(pass().with_data(result))
 }

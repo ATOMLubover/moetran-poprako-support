@@ -360,7 +360,7 @@ curl -G https://api.poprako.example/api/v1/projsets \
 
 | 方法 | 路径                  | 认证 | 幂等性 |
 | ---- | --------------------- | ---- | ------ |
-| POST | `/api/v1/proj/create` | 需要 | 非幂等 |
+| POST | `/api/v1/projs` | 需要 | 非幂等 |
 
 请求体（JSON）：
 
@@ -386,6 +386,7 @@ curl -G https://api.poprako.example/api/v1/projsets \
 {
     "code": 201,
     "data": {
+        "proj_id": "xxxxxxxx"
         "proj_serial": 12,
         "projset_index": 5
     }

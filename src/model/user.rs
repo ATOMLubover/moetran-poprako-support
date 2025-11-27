@@ -4,6 +4,7 @@ use crate::model::team::TeamInfoReply;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SyncUserPayload {
+    #[serde(alias = "userId")]
     pub user_id: String,
     pub username: String,
     pub email: String,
