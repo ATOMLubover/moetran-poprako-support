@@ -243,7 +243,7 @@ pub async fn search_projs(
             p.f_typesetting_status,
             p.f_reviewing_status,
             p.f_is_published,
-            pa.f_member_id,
+            m.f_member_id,
             m.f_is_admin,
             pa.f_is_translator,
             pa.f_is_proofreader,
@@ -252,7 +252,7 @@ pub async fn search_projs(
             u.f_username
         FROM t_proj p
         LEFT JOIN t_proj_assgin pa ON pa.f_proj_id = p.f_proj_id
-        LEFT JOIN t_member m ON m.f_member_id = pa.f_member_id
+        LEFT JOIN t_member m ON m.f_user_id = pa.f_user_id
         LEFT JOIN t_user u ON u.f_user_id = pa.f_user_id
         "#,
     );
@@ -338,7 +338,8 @@ pub async fn search_projs(
     // Filter by member ids if provided.
     if let Some(member_ids) = &args.member_ids {
         if !member_ids.is_empty() {
-            conditions.push(format!("pa.f_member_id = ANY(${})", idx));
+            // filter by member IDs stored on t_member.f_member_id
+            conditions.push(format!("m.f_member_id = ANY(${})", idx));
 
             idx += 1;
 
