@@ -282,10 +282,23 @@ pub async fn search_projs(
         bind_params.push(Param::Str(format!("%{}%", name)));
     }
 
+    // Filter by projset ids if provided.
+    if let Some(projset_ids) = &args.projset_ids {
+        if !projset_ids.is_empty() {
+            conditions.push(format!("p.f_projset_id = ANY(${})", idx));
+
+            idx += 1;
+
+            bind_params.push(Param::StrArray(projset_ids.clone()));
+        }
+    }
+
     // time_start filters projects created at or after the given unix timestamp (seconds).
     if let Some(ts) = args.time_start {
         conditions.push(format!("p.f_created_at >= to_timestamp(${})", idx));
+
         idx += 1;
+
         bind_params.push(Param::I64(ts));
     }
 

@@ -212,27 +212,19 @@ pub struct MarkProjStatusPayload {
 
 #[derive(Debug, Deserialize)]
 pub struct SearchProjPayload {
-    #[serde(alias = "projIds")]
     pub proj_ids: Option<Vec<String>>,
 
-    #[serde(alias = "fuzzyProjName")]
     pub fuzzy_proj_name: Option<String>,
+    pub projset_ids: Option<Vec<String>>,
 
-    #[serde(alias = "translatingStatus")]
     pub translating_status: Option<ProjStatus>,
-    #[serde(alias = "proofreadingStatus")]
     pub proofreading_status: Option<ProjStatus>,
-    #[serde(alias = "typesettingStatus")]
     pub typesetting_status: Option<ProjStatus>,
-    #[serde(alias = "reviewingStatus")]
     pub reviewing_status: Option<ProjStatus>,
-    #[serde(alias = "isPublished")]
     pub is_published: Option<bool>,
 
-    #[serde(alias = "memberIds")]
     pub member_ids: Option<Vec<String>>,
 
-    #[serde(alias = "timeStart")]
     pub time_start: Option<i64>,
 
     pub page: Option<i64>,
