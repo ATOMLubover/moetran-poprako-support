@@ -3,6 +3,7 @@ use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct MemberInfoReply {
+    pub user_id: String,
     pub member_id: String,
     pub username: String,
     pub is_admin: bool,
@@ -15,6 +16,7 @@ pub struct MemberInfoReply {
 #[derive(Debug, Serialize)]
 pub struct MemberAbstract {
     pub member_id: String,
+    pub user_id: String,
     pub username: String,
 }
 

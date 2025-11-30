@@ -141,6 +141,7 @@ curl -H "Authorization: Bearer <jwt>" \
     "code": 200,
     "data": {
         "member_id": "member_789",
+        "user_id": "user_123",
         "username": "alice",
         "is_admin": false,
         "is_translator": true,
@@ -206,10 +207,12 @@ curl -G https://api.example.com/api/v1/members/info \
     "data": [
         {
             "member_id": "member_1",
+            "user_id": "user_123",
             "username": "alice"
         },
         {
             "member_id": "member_2",
+            "user_id": "user_456",
             "username": "alice_2"
         }
     ]

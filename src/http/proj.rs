@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use axum::{
     Extension, Json,
     extract::{Path, State},

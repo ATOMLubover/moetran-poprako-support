@@ -57,6 +57,7 @@ pub async fn get_member_info(
     };
 
     let member_info = MemberInfoReply {
+        user_id: member.f_user_id,
         member_id: member.f_member_id,
         username: member.f_username,
         is_admin: member.f_is_admin,
@@ -174,9 +175,11 @@ pub async fn search_members(
         .into_iter()
         .map(|row| {
             let member_id: String = row.try_get("f_member_id").unwrap_or_default();
+            let user_id: String = row.try_get("f_user_id").unwrap_or_default();
             let username: String = row.try_get("f_username").unwrap_or_default();
             MemberAbstract {
                 member_id,
+                user_id,
                 username,
             }
         })

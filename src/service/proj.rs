@@ -243,7 +243,8 @@ pub async fn search_projs(
             p.f_typesetting_status,
             p.f_reviewing_status,
             p.f_is_published,
-            m.f_member_id,
+                m.f_member_id,
+                pa.f_user_id,
             m.f_is_admin,
             pa.f_is_translator,
             pa.f_is_proofreader,
@@ -407,6 +408,7 @@ pub async fn search_projs(
         f_reviewing_status: i32,
         f_is_published: bool,
         f_member_id: Option<String>,
+        f_user_id: Option<String>,
         f_is_admin: Option<bool>,
         f_is_translator: Option<bool>,
         f_is_proofreader: Option<bool>,
@@ -439,6 +441,7 @@ pub async fn search_projs(
 
         if let (Some(member_id), Some(username)) = (r.f_member_id, r.f_username) {
             entry.members.push(MemberInfoReply {
+                user_id: r.f_user_id.unwrap_or_default(),
                 member_id,
                 username,
                 is_admin: r.f_is_admin.unwrap_or(false),
@@ -492,6 +495,7 @@ async fn get_projs_by_id(proj_ids: Vec<String>, repo: &Repo) -> ServiceResult<Ve
     struct AssignJoined {
         f_proj_id: String,
         f_member_id: String,
+        f_user_id: String,
         f_is_admin: bool,
         f_is_translator: bool,
         f_is_proofreader: bool,
@@ -507,6 +511,7 @@ async fn get_projs_by_id(proj_ids: Vec<String>, repo: &Repo) -> ServiceResult<Ve
         SELECT
             pa.f_proj_id,
             m.f_member_id,
+            pa.f_user_id,
             m.f_is_admin,
             pa.f_is_translator,
             pa.f_is_proofreader,
@@ -552,6 +557,7 @@ async fn get_projs_by_id(proj_ids: Vec<String>, repo: &Repo) -> ServiceResult<Ve
     for a in assigns.into_iter() {
         if let Some(info) = proj_map.get_mut(&a.f_proj_id) {
             info.members.push(MemberInfoReply {
+                user_id: a.f_user_id,
                 member_id: a.f_member_id,
                 username: a.f_username,
                 is_admin: a.f_is_admin,
