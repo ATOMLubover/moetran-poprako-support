@@ -8,7 +8,6 @@ pub struct SyncUserPayload {
     pub user_id: String,
     pub username: String,
     pub email: String,
-    pub password: String,
 }
 
 #[derive(Debug, Clone, Serialize)]

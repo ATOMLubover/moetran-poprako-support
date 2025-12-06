@@ -719,6 +719,61 @@ curl -X POST https://api.example.com/api/v1/projs/proj_id_1/assign \
     }'
 ```
 
+### 12. 列出最新分配记录
+
+此接口用于按时间增量获取项目成员分配记录（assignment）。可用于同步第三方系统或客户端仅拉取自上次时间之后的新分配数据。
+
+| 方法 | 路径 | 认证 | 查询参数 |
+| ---- | ---- | ---- | -------- |
+| GET  | `/api/v1/assigns` | 需要 | `time_start=<unix_timestamp>, page=<integer>, limit=<integer>`（可选，默认 time_start=0, page=1, limit=10） |
+
+说明：
+- `time_start` 为 Unix 时间戳（秒），用于返回在该时间之后创建/更新的分配记录。若省略或为 0，则返回所有记录（按时间排序）。
+
+成功响应（200）：返回 ProjAssignInfo 列表，字段说明如下：
+
+ProjAssignInfo 字段：
+- `proj_id` (string) - 项目 ID
+- `proj_name` (string) - 项目名
+- `projset_serial` (integer) - 所属项目集序号
+- `projset_index` (integer) - 项目在项目集内的索引
+- `member_id` (string) - 成员 ID（本系统 member_id 或 user_id 视实现而定）
+- `username` (string) - 成员用户名
+- `is_translator` (boolean) - 是否为翻译
+- `is_proofreader` (boolean) - 是否为校对
+- `is_typesetter` (boolean) - 是否为排版
+- `updated_at` (integer, unix timestamp) - 分配记录更新时间（秒）
+
+示例响应：
+
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "proj_id": "proj_id_1",
+      "proj_name": "示例项目",
+      "projset_serial": 3,
+      "projset_index": 5,
+      "member_id": "user_123",
+      "username": "alice",
+      "is_translator": true,
+      "is_proofreader": false,
+      "is_typesetter": false,
+      "updated_at": 1700000000
+    }
+  ]
+}
+```
+
+错误响应示例：
+
+| 场景 | code |
+| ---- | ---- |
+| 未认证 | 401 |
+| 参数解析错误 | 400 |
+| 内部错误 | 500 |
+
 ---
 
 ## 公共错误语义

@@ -1,6 +1,6 @@
 use axum::{
     Extension, Json,
-    extract::{Path, Query, State},
+    extract::{Query, State},
 };
 use reqwest::StatusCode;
 use std::collections::HashMap;

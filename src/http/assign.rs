@@ -1,11 +1,15 @@
 use axum::{
     Extension, Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
 };
+use std::collections::HashMap;
 
 use crate::{
     http::result::HttpResult,
-    model::{assign::ProjAssignPayload, auth::Claims},
+    model::{
+        assign::{ProjAssignInfoReply, ProjAssignPayload},
+        auth::Claims,
+    },
     service,
     state::AppState,
 };
@@ -28,4 +32,25 @@ pub async fn assign_member(
     )
     .await
     .into()
+}
+
+pub async fn get_assigns(
+    State(state): State<AppState>,
+    Query(params): Query<HashMap<String, String>>,
+) -> HttpResult<Vec<ProjAssignInfoReply>> {
+    let time_start = params
+        .get("time_start")
+        .and_then(|t| t.parse::<i64>().ok())
+        .unwrap_or(0);
+
+    let page = params
+        .get("page")
+        .and_then(|p| p.parse::<i64>().ok())
+        .unwrap_or(1);
+    let limit = params
+        .get("limit")
+        .and_then(|l| l.parse::<i64>().ok())
+        .unwrap_or(10);
+
+    service::get_assigns(time_start, page, limit, state.repo()).await.into()
 }

@@ -7,7 +7,7 @@ use crate::{
     config::AppConfig,
     crawler::Crawler,
     model::{
-        assign::ProjAssignPayload,
+        assign::{ProjAssignInfoReply, ProjAssignPayload},
         moetran::{MtrInviteMemberReply, MtrInviteMemberRequest, MtrRole},
     },
     repo::Repo,
@@ -16,7 +16,6 @@ use crate::{
 
 /// Call external Moetran API to invite/assign a member to a project.
 /// This is modeled after the Go client's InviteMemberToProject.
-/// NOTE: not yet wired into assign_member flow.
 async fn assign_mtr_member(
     client: &Client,
     base_url: &str,
@@ -200,8 +199,8 @@ pub async fn assign_member(
     if !already_assigned {
         let mtr_payload = MtrInviteMemberRequest {
             user_id: member.f_user_id.clone(),
-            role_id: MtrRole::TRANSLATOR.to_string(), // Default to translator for now.
-            message: String::new(),                   // empty invitation message by default
+            role_id: MtrRole::PROOFREADER.to_string(), // Default to translator for now.
+            message: String::new(),                    // empty invitation message by default
         };
 
         assign_mtr_member(
@@ -253,4 +252,85 @@ pub async fn assign_member(
     Ok(pass()
         .with_code(StatusCode::NO_CONTENT.as_u16())
         .with_data(()))
+}
+
+// Helper: sanitize pagination (private, placed above the public function)
+fn sanitize_pagination(page: i64, limit: i64) -> (i64, i64, i64) {
+    let page = page.max(1);
+    let limit = limit.max(1);
+    let offset = (page - 1) * limit;
+    (page, limit, offset)
+}
+
+pub async fn get_assigns(
+    time_start: i64,
+    page: i64,
+    limit: i64,
+    repo: &Repo,
+) -> ServiceResult<Vec<ProjAssignInfoReply>> {
+    // Local joined struct defined within service function.
+    struct AssignJoined {
+        f_proj_id: String,
+        f_proj_name: String,
+        f_projset_serial: i32,
+        f_projset_index: i32,
+        f_user_id: String,
+        f_username: String,
+        f_is_translator: bool,
+        f_is_proofreader: bool,
+        f_is_typesetter: bool,
+        f_created_at: time::OffsetDateTime,
+    }
+
+    let timestamp = time::OffsetDateTime::from_unix_timestamp(time_start)
+        .unwrap_or(time::OffsetDateTime::UNIX_EPOCH);
+
+    let (_page, limit, offset) = sanitize_pagination(page, limit);
+
+    let rows = sqlx::query_as!(
+        AssignJoined,
+        r#"
+        SELECT
+            pa.f_proj_id,
+            p.f_proj_name,
+            ps.f_projset_serial,
+            p.f_projset_index,
+            pa.f_user_id as "f_user_id",
+            u.f_username,
+            pa.f_is_translator,
+            pa.f_is_proofreader,
+            pa.f_is_typesetter,
+            pa.f_created_at
+        FROM t_proj_assgin pa
+        JOIN t_proj p ON pa.f_proj_id = p.f_proj_id
+        JOIN t_projset ps ON p.f_projset_id = ps.f_projset_id
+        JOIN t_user u ON pa.f_user_id = u.f_user_id
+        WHERE pa.f_created_at > $1
+        ORDER BY pa.f_created_at ASC
+        LIMIT $2 OFFSET $3
+        "#,
+        timestamp,
+        limit,
+        offset
+    )
+    .fetch_all(&*repo.pool())
+    .await?;
+
+    let replies = rows
+        .into_iter()
+        .map(|a| ProjAssignInfoReply {
+            proj_id: a.f_proj_id,
+            proj_name: a.f_proj_name,
+            projset_serial: a.f_projset_serial,
+            projset_index: a.f_projset_index,
+            member_id: a.f_user_id,
+            username: a.f_username,
+            is_translator: a.f_is_translator,
+            is_proofreader: a.f_is_proofreader,
+            is_typesetter: a.f_is_typesetter,
+            updated_at: a.f_created_at,
+        })
+        .collect::<Vec<_>>();
+
+    Ok(pass().with_data(replies))
 }

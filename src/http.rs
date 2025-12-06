@@ -10,12 +10,13 @@ mod assign;
 mod health;
 mod member;
 mod middleware;
+mod notify;
 mod proj;
 mod projset;
 mod result;
 mod user;
 
-use crate::http::assign::assign_member;
+use crate::http::assign::{assign_member, get_assigns};
 use crate::http::middleware::auth_middleware;
 use crate::http::proj::{
     create_proj as http_create_proj, get_projs_by_id as http_get_projs_by_id,
@@ -51,12 +52,18 @@ async fn init_router(app_state: &AppState) -> anyhow::Result<Router> {
         .route("/", get(http_get_projset_by_team))
         .route("/", post(http_create_projset));
 
+    let assign_router = Router::new().route("/", get(get_assigns));
+
+    let notify_router = Router::new().route("/update", get(notify::check_update));
+
     let api_router = Router::new()
         .nest("/health", health_router)
         .nest("/users", user_router)
         .nest("/members", member_router)
         .nest("/projs", proj_router)
         .nest("/projsets", projset_router)
+        .nest("/assigns", assign_router)
+        .nest("/notify", notify_router)
         .route_layer(from_fn_with_state(app_state.clone(), auth_middleware));
 
     let router = Router::new()
