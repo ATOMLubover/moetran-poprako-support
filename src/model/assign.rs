@@ -11,6 +11,7 @@ pub struct ProjAssignPayload {
     pub is_translator: bool,
     pub is_proofreader: bool,
     pub is_typesetter: bool,
+    pub is_redrawer: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -26,6 +27,7 @@ pub struct ProjAssignInfoReply {
     pub is_translator: bool,
     pub is_proofreader: bool,
     pub is_typesetter: bool,
+    pub is_redrawer: bool,
 
     #[serde(with = "time::serde::timestamp")]
     pub updated_at: OffsetDateTime,

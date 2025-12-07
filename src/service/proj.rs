@@ -183,6 +183,7 @@ pub async fn create_proj(
             f_is_translator,
             f_is_proofreader,
             f_is_typesetter,
+            f_is_redrawer,
             f_is_principal
         )
         VALUES (
@@ -192,7 +193,8 @@ pub async fn create_proj(
             $3,
             $4,
             $5,
-            $6
+            $6,
+            $7
         )
         ON CONFLICT (f_proj_id, f_user_id)
         DO UPDATE SET
@@ -203,6 +205,7 @@ pub async fn create_proj(
         false, // is_translator
         false, // is_proofreader
         false, // is_typesetter
+        false, // is_redrawer
         true,  // is_principal => creator becomes principal
     )
     .execute(&*repo.pool())
@@ -249,6 +252,7 @@ pub async fn search_projs(
             pa.f_is_translator,
             pa.f_is_proofreader,
             pa.f_is_typesetter,
+            pa.f_is_redrawer,
             pa.f_is_principal,
             u.f_username
         FROM t_proj p
@@ -413,6 +417,7 @@ pub async fn search_projs(
         f_is_translator: Option<bool>,
         f_is_proofreader: Option<bool>,
         f_is_typesetter: Option<bool>,
+        f_is_redrawer: Option<bool>,
         f_is_principal: Option<bool>,
         f_username: Option<String>,
     }
@@ -448,6 +453,7 @@ pub async fn search_projs(
                 is_translator: r.f_is_translator.unwrap_or(false),
                 is_proofreader: r.f_is_proofreader.unwrap_or(false),
                 is_typesetter: r.f_is_typesetter.unwrap_or(false),
+                is_redrawer: r.f_is_redrawer.unwrap_or(false),
                 is_principal: r.f_is_principal.unwrap_or(false),
             });
         }
@@ -500,6 +506,7 @@ async fn get_projs_by_id(proj_ids: Vec<String>, repo: &Repo) -> ServiceResult<Ve
         f_is_translator: bool,
         f_is_proofreader: bool,
         f_is_typesetter: bool,
+        f_is_redrawer: bool,
         f_is_principal: bool,
         f_username: String,
     }
@@ -516,6 +523,7 @@ async fn get_projs_by_id(proj_ids: Vec<String>, repo: &Repo) -> ServiceResult<Ve
             pa.f_is_translator,
             pa.f_is_proofreader,
             pa.f_is_typesetter,
+            pa.f_is_redrawer,
             pa.f_is_principal,
             u.f_username
         FROM t_proj_assgin pa
@@ -564,6 +572,7 @@ async fn get_projs_by_id(proj_ids: Vec<String>, repo: &Repo) -> ServiceResult<Ve
                 is_translator: a.f_is_translator,
                 is_proofreader: a.f_is_proofreader,
                 is_typesetter: a.f_is_typesetter,
+                is_redrawer: a.f_is_redrawer,
                 is_principal: a.f_is_principal,
             });
         }

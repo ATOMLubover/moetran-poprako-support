@@ -10,6 +10,7 @@ pub struct MemberInfoReply {
     pub is_translator: bool,
     pub is_proofreader: bool,
     pub is_typesetter: bool,
+    pub is_redrawer: bool,
     pub is_principal: bool,
 }
 

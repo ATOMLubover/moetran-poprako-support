@@ -1,5 +1,3 @@
-use axum::Json;
-
 use crate::http::result::HttpResult;
 use crate::model::notify::UpdateNotifyReply;
 

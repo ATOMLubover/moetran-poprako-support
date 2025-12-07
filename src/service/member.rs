@@ -20,6 +20,7 @@ pub async fn get_member_info(
         f_is_translator: bool,
         f_is_proofreader: bool,
         f_is_typesetter: bool,
+        f_is_redrawer: bool,
         f_is_principal: bool,
         f_username: String,
     }
@@ -35,6 +36,7 @@ pub async fn get_member_info(
             m.f_is_translator,
             m.f_is_proofreader,
             m.f_is_typesetter,
+            m.f_is_redrawer,
             m.f_is_principal,
             u.f_username
         FROM t_member m
@@ -64,6 +66,7 @@ pub async fn get_member_info(
         is_translator: member.f_is_translator,
         is_proofreader: member.f_is_proofreader,
         is_typesetter: member.f_is_typesetter,
+        is_redrawer: member.f_is_redrawer,
         is_principal: member.f_is_principal,
     };
 
@@ -87,6 +90,7 @@ pub async fn search_members(
         f_is_translator: bool,
         f_is_proofreader: bool,
         f_is_typesetter: bool,
+        f_is_redrawer: bool,
         f_is_principal: bool,
         f_username: String,
     }
@@ -102,6 +106,7 @@ pub async fn search_members(
             m.f_is_translator,
             m.f_is_proofreader,
             m.f_is_typesetter,
+            m.f_is_redrawer,
             m.f_is_principal,
             u.f_username
         FROM t_member m
@@ -133,6 +138,9 @@ pub async fn search_members(
             }
             "typesetter" => {
                 conditions.push(format!("m.f_is_typesetter = TRUE"));
+            }
+            "redrawer" => {
+                conditions.push(format!("m.f_is_redrawer = TRUE"));
             }
             "principal" => {
                 conditions.push(format!("m.f_is_principal = TRUE"));

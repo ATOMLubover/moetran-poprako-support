@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS t_proj_assgin (
     f_is_translator BOOLEAN NOT NULL DEFAULT FALSE,
     f_is_proofreader BOOLEAN NOT NULL DEFAULT FALSE,
     f_is_typesetter BOOLEAN NOT NULL DEFAULT FALSE,
+    f_is_redrawer BOOLEAN NOT NULL DEFAULT FALSE,
     f_is_principal BOOLEAN NOT NULL DEFAULT FALSE,
     
     f_created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

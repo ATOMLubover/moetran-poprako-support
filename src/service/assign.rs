@@ -131,6 +131,7 @@ pub async fn assign_member(
         f_is_translator: bool,
         f_is_proofreader: bool,
         f_is_typesetter: bool,
+        f_is_redrawer: bool,
     }
 
     let member = sqlx::query_as!(
@@ -142,7 +143,8 @@ pub async fn assign_member(
             f_team_id,
             f_is_translator,
             f_is_proofreader,
-            f_is_typesetter
+            f_is_typesetter,
+            f_is_redrawer
         FROM t_member
         WHERE f_member_id = $1 AND f_team_id = $2
         "#,
@@ -175,6 +177,11 @@ pub async fn assign_member(
     if args.is_typesetter && !member.f_is_typesetter {
         return Err(ServiceError::GenericError(
             "Member is not a typesetter".to_string(),
+        ));
+    }
+    if args.is_redrawer && !member.f_is_redrawer {
+        return Err(ServiceError::GenericError(
+            "Member is not a redrawer".to_string(),
         ));
     }
 
@@ -224,7 +231,8 @@ pub async fn assign_member(
             f_user_id,
             f_is_translator,
             f_is_proofreader,
-            f_is_typesetter
+            f_is_typesetter,
+            f_is_redrawer
         )
         VALUES (
             gen_random_uuid()::text,
@@ -232,19 +240,22 @@ pub async fn assign_member(
             $2,
             $3,
             $4,
-            $5
+            $5,
+            $6
         )
         ON CONFLICT (f_proj_id, f_user_id)
         DO UPDATE SET
             f_is_translator = EXCLUDED.f_is_translator,
             f_is_proofreader = EXCLUDED.f_is_proofreader,
-            f_is_typesetter = EXCLUDED.f_is_typesetter
+            f_is_typesetter = EXCLUDED.f_is_typesetter,
+            f_is_redrawer = EXCLUDED.f_is_redrawer
         "#,
         args.proj_id,
         member.f_user_id,
         args.is_translator,
         args.is_proofreader,
         args.is_typesetter,
+        args.is_redrawer,
     )
     .execute(&*repo.pool())
     .await?;
@@ -279,6 +290,7 @@ pub async fn get_assigns(
         f_is_translator: bool,
         f_is_proofreader: bool,
         f_is_typesetter: bool,
+        f_is_redrawer: bool,
         f_created_at: time::OffsetDateTime,
     }
 
@@ -300,6 +312,7 @@ pub async fn get_assigns(
             pa.f_is_translator,
             pa.f_is_proofreader,
             pa.f_is_typesetter,
+            pa.f_is_redrawer,
             pa.f_created_at
         FROM t_proj_assgin pa
         JOIN t_proj p ON pa.f_proj_id = p.f_proj_id
@@ -328,6 +341,7 @@ pub async fn get_assigns(
             is_translator: a.f_is_translator,
             is_proofreader: a.f_is_proofreader,
             is_typesetter: a.f_is_typesetter,
+            is_redrawer: a.f_is_redrawer,
             updated_at: a.f_created_at,
         })
         .collect::<Vec<_>>();
