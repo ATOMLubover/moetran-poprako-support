@@ -28,6 +28,7 @@ pub struct ProjAssignInfoReply {
     pub is_proofreader: bool,
     pub is_typesetter: bool,
     pub is_redrawer: bool,
+    pub is_principal: bool,
 
     #[serde(with = "time::serde::timestamp")]
     pub updated_at: OffsetDateTime,

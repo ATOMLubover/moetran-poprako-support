@@ -809,6 +809,7 @@ ProjAssignInfo 字段：
       "is_proofreader": false,
         "is_typesetter": false,
         "is_redrawer": false,
+        "is_principal": false,
         "updated_at": 1700000000
     }
   ]

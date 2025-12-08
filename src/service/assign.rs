@@ -232,7 +232,8 @@ pub async fn assign_member(
             f_is_translator,
             f_is_proofreader,
             f_is_typesetter,
-            f_is_redrawer
+            f_is_redrawer,
+            f_is_principal
         )
         VALUES (
             gen_random_uuid()::text,
@@ -241,7 +242,8 @@ pub async fn assign_member(
             $3,
             $4,
             $5,
-            $6
+            $6,
+            $7
         )
         ON CONFLICT (f_proj_id, f_user_id)
         DO UPDATE SET
@@ -256,6 +258,7 @@ pub async fn assign_member(
         args.is_proofreader,
         args.is_typesetter,
         args.is_redrawer,
+        false,
     )
     .execute(&*repo.pool())
     .await?;
@@ -291,6 +294,7 @@ pub async fn get_assigns(
         f_is_proofreader: bool,
         f_is_typesetter: bool,
         f_is_redrawer: bool,
+        f_is_principal: bool,
         f_created_at: time::OffsetDateTime,
     }
 
@@ -313,6 +317,7 @@ pub async fn get_assigns(
             pa.f_is_proofreader,
             pa.f_is_typesetter,
             pa.f_is_redrawer,
+            pa.f_is_principal,
             pa.f_created_at
         FROM t_proj_assgin pa
         JOIN t_proj p ON pa.f_proj_id = p.f_proj_id
@@ -342,6 +347,7 @@ pub async fn get_assigns(
             is_proofreader: a.f_is_proofreader,
             is_typesetter: a.f_is_typesetter,
             is_redrawer: a.f_is_redrawer,
+            is_principal: a.f_is_principal,
             updated_at: a.f_created_at,
         })
         .collect::<Vec<_>>();

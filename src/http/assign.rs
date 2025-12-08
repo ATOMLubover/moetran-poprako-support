@@ -52,5 +52,6 @@ pub async fn get_assigns(
         .and_then(|l| l.parse::<i64>().ok())
         .unwrap_or(10);
 
+    tracing::debug!("get_assigns: time_start={}, page={}, limit={}", time_start, page, limit);
     service::get_assigns(time_start, page, limit, state.repo()).await.into()
 }
