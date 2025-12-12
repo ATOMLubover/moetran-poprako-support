@@ -260,7 +260,7 @@ pub async fn assign_member(
         args.is_redrawer,
         false,
     )
-    .execute(&*repo.pool())
+    .execute(repo.pool())
     .await?;
 
     Ok(pass()

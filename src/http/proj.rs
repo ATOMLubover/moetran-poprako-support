@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use axum::{
     Extension, Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
 };
+use reqwest::StatusCode;
 
 use crate::{
     http::result::HttpResult,
@@ -39,6 +42,36 @@ pub async fn get_projs_by_id(
     Json(payload): Json<SearchProjPayload>,
 ) -> HttpResult<Vec<ProjInfoReply>> {
     service::search_projs(payload, state.repo()).await.into()
+}
+
+/// GET /projs?team_id=&page=&limit=
+pub async fn get_projs(
+    State(state): State<AppState>,
+    Query(params): Query<HashMap<String, String>>,
+) -> HttpResult<Vec<ProjInfoReply>> {
+    let team_id = match params.get("team_id") {
+        Some(tid) => tid.clone(),
+        None => {
+            return HttpResult::new(
+                StatusCode::BAD_REQUEST,
+                Some("Missing team_id parameter.".to_string()),
+                None,
+            );
+        }
+    };
+
+    let page = params
+        .get("page")
+        .and_then(|p| p.parse::<i64>().ok())
+        .unwrap_or(1);
+    let limit = params
+        .get("limit")
+        .and_then(|l| l.parse::<i64>().ok())
+        .unwrap_or(10);
+
+    service::get_projs(team_id, page, limit, state.repo())
+        .await
+        .into()
 }
 
 /// PUT /projs/:proj_id/status

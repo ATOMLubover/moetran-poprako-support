@@ -20,6 +20,97 @@ use crate::{
     service::{ServiceError, ServiceResult, fail, pass},
 };
 
+#[derive(sqlx::FromRow)]
+struct ProjRow {
+    f_proj_id: String,
+    f_proj_name: String,
+    f_projset_id: String,
+    f_projset_serial: i32,
+    f_projset_index: i32,
+    f_translating_status: i32,
+    f_proofreading_status: i32,
+    f_typesetting_status: i32,
+    f_reviewing_status: i32,
+    f_is_published: bool,
+    f_member_id: Option<String>,
+    f_user_id: Option<String>,
+    f_is_admin: Option<bool>,
+    f_is_translator: Option<bool>,
+    f_is_proofreader: Option<bool>,
+    f_is_typesetter: Option<bool>,
+    f_is_redrawer: Option<bool>,
+    f_is_principal: Option<bool>,
+    f_username: Option<String>,
+}
+
+fn aggregate_proj_rows(rows: Vec<ProjRow>) -> (HashMap<String, ProjInfoReply>, Vec<String>) {
+    let mut proj_map: HashMap<String, ProjInfoReply> = HashMap::new();
+    let mut order: Vec<String> = Vec::new();
+
+    for row in rows.into_iter() {
+        let ProjRow {
+            f_proj_id,
+            f_proj_name,
+            f_projset_id,
+            f_projset_serial,
+            f_projset_index,
+            f_translating_status,
+            f_proofreading_status,
+            f_typesetting_status,
+            f_reviewing_status,
+            f_is_published,
+            f_member_id,
+            f_user_id,
+            f_is_admin,
+            f_is_translator,
+            f_is_proofreader,
+            f_is_typesetter,
+            f_is_redrawer,
+            f_is_principal,
+            f_username,
+        } = row;
+
+        if !proj_map.contains_key(&f_proj_id) {
+            order.push(f_proj_id.clone());
+            proj_map.insert(
+                f_proj_id.clone(),
+                ProjInfoReply {
+                    proj_id: f_proj_id.clone(),
+                    proj_name: f_proj_name,
+                    description: None,
+                    projset_id: f_projset_id,
+                    projset_serial: f_projset_serial,
+                    projset_index: f_projset_index,
+                    translating_status: f_translating_status.into(),
+                    proofreading_status: f_proofreading_status.into(),
+                    typesetting_status: f_typesetting_status.into(),
+                    reviewing_status: f_reviewing_status.into(),
+                    is_published: f_is_published,
+                    members: Vec::new(),
+                },
+            );
+        }
+
+        if let (Some(entry), Some(member_id), Some(username)) =
+            (proj_map.get_mut(&f_proj_id), f_member_id, f_username)
+        {
+            entry.members.push(MemberInfoReply {
+                user_id: f_user_id.unwrap_or_default(),
+                member_id,
+                username,
+                is_admin: f_is_admin.unwrap_or(false),
+                is_translator: f_is_translator.unwrap_or(false),
+                is_proofreader: f_is_proofreader.unwrap_or(false),
+                is_typesetter: f_is_typesetter.unwrap_or(false),
+                is_redrawer: f_is_redrawer.unwrap_or(false),
+                is_principal: f_is_principal.unwrap_or(false),
+            });
+        }
+    }
+
+    (proj_map, order)
+}
+
 /// Call external Moetran API to create a project and return its id.
 async fn create_mtr_project(
     client: &Client,
@@ -379,7 +470,7 @@ pub async fn search_projs(
     sql.push_str(" OFFSET $");
     sql.push_str(&idx.to_string());
 
-    let mut query = sqlx::query_as::<_, Row>(&sql);
+    let mut query = sqlx::query_as::<_, ProjRow>(&sql);
 
     // Bind dynamic params in order with concrete types.
     for param in bind_params {
@@ -422,42 +513,8 @@ pub async fn search_projs(
         f_username: Option<String>,
     }
 
-    let rows: Vec<Row> = query.fetch_all(&*repo.pool()).await?;
-
-    let mut proj_map: HashMap<String, ProjInfoReply> = HashMap::new();
-
-    for r in rows.into_iter() {
-        let entry = proj_map
-            .entry(r.f_proj_id.clone())
-            .or_insert_with(|| ProjInfoReply {
-                proj_id: r.f_proj_id.clone(),
-                proj_name: r.f_proj_name.clone(),
-                description: None,
-                projset_id: r.f_projset_id.clone(),
-                projset_serial: r.f_projset_serial,
-                projset_index: r.f_projset_index,
-                translating_status: r.f_translating_status.into(),
-                proofreading_status: r.f_proofreading_status.into(),
-                typesetting_status: r.f_typesetting_status.into(),
-                reviewing_status: r.f_reviewing_status.into(),
-                is_published: r.f_is_published,
-                members: Vec::new(),
-            });
-
-        if let (Some(member_id), Some(username)) = (r.f_member_id, r.f_username) {
-            entry.members.push(MemberInfoReply {
-                user_id: r.f_user_id.unwrap_or_default(),
-                member_id,
-                username,
-                is_admin: r.f_is_admin.unwrap_or(false),
-                is_translator: r.f_is_translator.unwrap_or(false),
-                is_proofreader: r.f_is_proofreader.unwrap_or(false),
-                is_typesetter: r.f_is_typesetter.unwrap_or(false),
-                is_redrawer: r.f_is_redrawer.unwrap_or(false),
-                is_principal: r.f_is_principal.unwrap_or(false),
-            });
-        }
-    }
+    let rows = query.fetch_all(&*repo.pool()).await?;
+    let (proj_map, _) = aggregate_proj_rows(rows);
 
     let mut result: Vec<ProjInfoReply> = proj_map.into_values().collect();
     result.sort_by(|a, b| {
@@ -465,6 +522,65 @@ pub async fn search_projs(
             .cmp(&b.projset_serial)
             .then(a.projset_index.cmp(&b.projset_index))
     });
+
+    Ok(pass().with_data(result))
+}
+
+pub async fn get_projs(
+    team_id: String,
+    page: i64,
+    limit: i64,
+    repo: &Repo,
+) -> ServiceResult<Vec<ProjInfoReply>> {
+    let page = page.max(1);
+    let limit = limit.max(1);
+    let offset = (page - 1) * limit;
+
+    let sql = r#"
+        SELECT
+            p.f_proj_id,
+            p.f_proj_name,
+            p.f_projset_id,
+            p.f_projset_serial,
+            p.f_projset_index,
+            p.f_translating_status,
+            p.f_proofreading_status,
+            p.f_typesetting_status,
+            p.f_reviewing_status,
+            p.f_is_published,
+            m.f_member_id,
+            pa.f_user_id,
+            m.f_is_admin,
+            pa.f_is_translator,
+            pa.f_is_proofreader,
+            pa.f_is_typesetter,
+            pa.f_is_redrawer,
+            pa.f_is_principal,
+            u.f_username
+        FROM t_proj p
+        JOIN t_projset ps ON ps.f_projset_id = p.f_projset_id
+        LEFT JOIN t_proj_assgin pa ON pa.f_proj_id = p.f_proj_id
+        LEFT JOIN t_member m ON m.f_user_id = pa.f_user_id AND m.f_team_id = ps.f_team_id
+        LEFT JOIN t_user u ON u.f_user_id = pa.f_user_id
+        WHERE ps.f_team_id = $1
+        ORDER BY p.f_created_at DESC, p.f_proj_id
+        LIMIT $2 OFFSET $3
+        "#;
+
+    let rows = sqlx::query_as::<_, ProjRow>(sql)
+        .bind(&team_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&*repo.pool())
+        .await?;
+
+    let (mut proj_map, order) = aggregate_proj_rows(rows);
+    let mut result: Vec<ProjInfoReply> = Vec::with_capacity(order.len());
+    for proj_id in order {
+        if let Some(info) = proj_map.remove(&proj_id) {
+            result.push(info);
+        }
+    }
 
     Ok(pass().with_data(result))
 }

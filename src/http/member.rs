@@ -10,7 +10,7 @@ use crate::{
     http::result::HttpResult,
     model::{
         auth::Claims,
-        member::{MemberAbstract, MemberInfoReply, SearchMemberPayload},
+        member::{GetActiveMemberReply, MemberInfoReply, SearchMemberPayload},
     },
     service,
     state::AppState,
@@ -41,7 +41,7 @@ pub async fn get_member_info(
 pub async fn pick_members_by_position(
     State(state): State<AppState>,
     Query(params): Query<HashMap<String, String>>,
-) -> HttpResult<Vec<MemberAbstract>> {
+) -> HttpResult<Vec<GetActiveMemberReply>> {
     let team_id = match params.get("team_id") {
         Some(tid) => tid.clone(),
         None => {
@@ -87,6 +87,36 @@ pub async fn pick_members_by_position(
 pub async fn search_members(
     State(state): State<AppState>,
     Json(payload): Json<SearchMemberPayload>,
-) -> HttpResult<Vec<MemberAbstract>> {
+) -> HttpResult<Vec<GetActiveMemberReply>> {
     service::search_members(payload, state.repo()).await.into()
+}
+
+/// GET /members/active - get all members with their last active time
+pub async fn get_active_members(
+    State(state): State<AppState>,
+    Query(params): Query<HashMap<String, String>>,
+) -> HttpResult<Vec<GetActiveMemberReply>> {
+    let team_id = match params.get("team_id") {
+        Some(tid) => tid.clone(),
+        None => {
+            return HttpResult::new(
+                StatusCode::BAD_REQUEST,
+                Some("Missing team_id parameter.".to_string()),
+                None,
+            );
+        }
+    };
+
+    let page = params
+        .get("page")
+        .and_then(|p| p.parse::<i64>().ok())
+        .unwrap_or(1);
+    let limit = params
+        .get("limit")
+        .and_then(|l| l.parse::<i64>().ok())
+        .unwrap_or(10);
+
+    service::get_active_members(team_id, page, limit, state.repo())
+        .await
+        .into()
 }

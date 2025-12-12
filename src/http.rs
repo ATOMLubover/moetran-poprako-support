@@ -19,8 +19,9 @@ mod user;
 use crate::http::assign::{assign_member, get_assigns};
 use crate::http::middleware::auth_middleware;
 use crate::http::proj::{
-    create_proj as http_create_proj, get_projs_by_id as http_get_projs_by_id,
-    mark_proj_published as http_mark_proj_published, mark_proj_status as http_mark_proj_status,
+    create_proj as http_create_proj, get_projs as http_get_projs,
+    get_projs_by_id as http_get_projs_by_id, mark_proj_published as http_mark_proj_published,
+    mark_proj_status as http_mark_proj_status,
 };
 use crate::http::projset::{
     create_projset as http_create_projset, get_projsets_by_team as http_get_projset_by_team,
@@ -39,9 +40,11 @@ async fn init_router(app_state: &AppState) -> anyhow::Result<Router> {
     let member_router = Router::new()
         .route("/info", get(member::get_member_info))
         .route("/", get(member::pick_members_by_position))
-        .route("/search", post(member::search_members));
+        .route("/search", post(member::search_members))
+        .route("/active", get(member::get_active_members));
 
     let proj_router = Router::new()
+        .route("/", get(http_get_projs))
         .route("/", post(http_create_proj))
         .route("/search", post(http_get_projs_by_id))
         .route("/{proj_id}/assign", post(assign_member))

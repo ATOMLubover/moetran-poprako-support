@@ -5,7 +5,7 @@ migrvt:
 	sqlx migrate revert
 
 migrun:
-	sqlx migrate run 
+	sqlx migrate run
 
 dbrst:
 	sqlx database reset

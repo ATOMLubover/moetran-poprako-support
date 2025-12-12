@@ -49,7 +49,7 @@ pub async fn sync_user(
 ) -> ServiceResult<SyncTokenReply> {
     let mut transac = repo.pool().begin().await?;
 
-    let user_id = query_scalar!(
+    let user_id: Option<String> = query_scalar!(
         r#"
         SELECT f_user_id
         FROM t_user

@@ -209,16 +209,37 @@ curl -G https://api.example.com/api/v1/members/info \
         {
             "member_id": "member_1",
             "user_id": "user_123",
-            "username": "alice"
+            "username": "alice",
+            "is_admin": true,
+            "is_translator": true,
+            "is_proofreader": false,
+            "is_typesetter": false,
+            "is_redrawer": false,
+            "is_principal": false,
+            "last_active": "2025-12-08T10:30:00Z"
         },
         {
             "member_id": "member_2",
             "user_id": "user_456",
-            "username": "alice_2"
+            "username": "alice_2",
+            "is_admin": false,
+            "is_translator": true,
+            "is_proofreader": false,
+            "is_typesetter": false,
+            "is_redrawer": false,
+            "is_principal": false,
+            "last_active": "2025-12-05T14:20:00Z"
         }
     ]
 }
 ```
+
+字段说明：
+
+- `last_active`：该成员在当前团队项目中最后一次被分配的时间。若从未被分配过项目，则为 `null`。
+- 返回结果按 `last_active` 降序排列，未分配过项目的成员排在最后。
+
+- 注意：POST `/api/v1/members/search` 与 GET `/api/v1/members` 现在返回包含所有角色标志位及 `last_active` 字段的成员对象，结构与 GET `/api/v1/members/active` 相同。
 
 错误响应：
 
@@ -264,11 +285,93 @@ curl -G https://api.example.com/api/v1/members \
     --data-urlencode "limit=20"
 ```
 
+### 5. 获取活跃成员列表
+
+获取指定团队的所有成员及其最后活跃时间（基于最后一次项目分配时间）。返回结果按 `last_active` 降序排列，未分配过项目的成员排在最后。
+
+| 方法 | 路径                     | 认证 | 查询参数           |
+| ---- | ------------------------ | ---- | ------------------ |
+| GET  | `/api/v1/members/active` | 需要 | `team_id=<string>, page=<integer>, limit=<integer>` |
+
+成功响应：
+
+```json
+{
+    "code": 200,
+
+查询参数说明：
+
+- `team_id`（必填）：所属团队 ID
+- `page`（可选）：页码，从 1 开始，默认 1
+- `limit`（可选）：每页条数，默认 10
+
+错误响应：
+            "member_id": "member_1",
+            "user_id": "user_123",
+            "username": "alice",
+            "is_admin": true,
+            "is_translator": true,
+            "is_proofreader": false,
+            "is_typesetter": false,
+            "is_redrawer": false,
+            "is_principal": false,
+            "last_active": "2025-12-08T10:30:00Z"
+        },
+        {
+            "member_id": "member_2",
+            "user_id": "user_456",
+            "username": "bob",
+            "is_admin": false,
+            "is_translator": false,
+            "is_proofreader": true,
+            "is_typesetter": false,
+            "is_redrawer": false,
+            "is_principal": false,
+            "last_active": "2025-12-05T14:20:00Z"
+        },
+        {
+            "member_id": "member_3",
+            "user_id": "user_789",
+            "username": "charlie",
+            "is_admin": false,
+            "is_translator": true,
+            "is_proofreader": false,
+            "is_typesetter": false,
+            "is_redrawer": false,
+            "is_principal": false,
+            "last_active": null
+        }
+    ]
+}
+```
+
+字段说明：
+
+- `last_active`：该成员在当前团队项目中最后一次被分配的时间（`t_proj_assgin.f_created_at` 的最大值）。若从未被分配过项目，则为 `null`。
+
+错误响应：
+
+| 场景            | code |
+| --------------- | ---- |
+| 未认证          | 401  |
+| team_id 缺失    | 400  |
+| 内部错误        | 500  |
+
+示例 cURL：
+
+```bash
+curl -G https://api.example.com/api/v1/members/active \
+    -H "Authorization: Bearer <jwt>" \
+    --data-urlencode "team_id=team_a" \
+    --data-urlencode "page=1" \
+    --data-urlencode "limit=20"
+```
+
 ---
 
 ## ProjSet 部分
 
-### 5. 创建项目集
+### 6. 创建项目集
 
 在指定团队下创建一个新的项目集。仅团队管理员可创建。首先在 Moetran 上创建对应 project-set，再在本服务中记录 serial。
 
@@ -329,7 +432,7 @@ curl -X POST https://api.example.com/api/v1/projsets \
     }'
 ```
 
-### 6. 列出团队下的项目集
+### 7. 列出团队下的项目集
 
 列出指定团队下的所有项目集。
 
@@ -453,7 +556,75 @@ curl -X POST https://api.example.com/api/v1/projs \
     }'
 ```
 
-### 8. 搜索/筛选项目列表
+### 8. 列出团队项目
+
+按团队分页列出项目，结果默认按 `f_created_at` 倒序返回，最近创建的项目在前。
+
+| 方法 | 路径               | 认证 | 查询参数                                   |
+| ---- | ------------------ | ---- | ------------------------------------------ |
+| GET  | `/api/v1/projs`    | 需要 | `team_id=<string>`, `page=<int>`, `limit=<int>` |
+
+查询参数：
+
+- `team_id`（必填）：所属团队 ID
+- `page`（可选）：页码，从 1 开始，默认 1
+- `limit`（可选）：每页条数，默认 10
+
+成功响应：
+
+```json
+{
+    "code": 200,
+    "data": [
+        {
+            "proj_id": "proj_id_1",
+            "proj_name": "【3-5】章节1对话",
+            "description": null,
+            "projset_id": "projset_123",
+            "projset_serial": 3,
+            "projset_index": 5,
+            "translating_status": 0,
+            "proofreading_status": 0,
+            "typesetting_status": 0,
+            "reviewing_status": 0,
+            "is_published": false,
+            "members": [
+                {
+                    "member_id": "member_1",
+                    "user_id": "user_123",
+                    "username": "alice",
+                    "is_admin": false,
+                    "is_translator": true,
+                    "is_proofreader": false,
+                    "is_typesetter": false,
+                    "is_redrawer": false,
+                    "is_principal": true
+                }
+            ]
+        }
+    ]
+}
+```
+
+错误响应：
+
+| 场景         | code |
+| ------------ | ---- |
+| 未认证       | 401  |
+| team_id 缺失 | 400  |
+| 内部错误     | 500  |
+
+示例 cURL：
+
+```bash
+curl -G https://api.example.com/api/v1/projs \
+    -H "Authorization: Bearer <jwt>" \
+    --data-urlencode "team_id=team_a" \
+    --data-urlencode "page=1" \
+    --data-urlencode "limit=20"
+```
+
+### 9. 搜索/筛选项目列表
 
 通用的项目搜索接口，支持按项目 ID 列表直接查询，或按多条件筛选并分页返回项目信息与参与成员列表。
 
@@ -552,7 +723,7 @@ curl -X POST https://api.example.com/api/v1/projs/search \
     }'
 ```
 
-### 9. 更新项目流程状态
+### 10. 更新项目流程状态
 
 仅项目负责人（principal）可以修改项目的流程状态。状态值采用枚举：`0=未开始`、`1=进行中`、`2=已完成`。
 
@@ -607,7 +778,7 @@ curl -X PUT https://api.example.com/api/v1/projs/proj_id_1/status \
     }'
 ```
 
-### 10. 标记项目为已发布
+### 11. 标记项目为已发布
 
 仅项目负责人可以将项目标记为已发布。
 
@@ -689,7 +860,7 @@ curl -H "Authorization: Bearer <jwt>" \
 
 ## Assign 部分
 
-### 11. 指派成员到项目
+### 12. 指派成员到项目
 
 仅项目负责人（principal）可以为项目指派或更新成员角色。若成员在目标团队中不存在、或不具备请求中的角色能力，则返回错误。
 
@@ -766,7 +937,7 @@ curl -X POST https://api.example.com/api/v1/projs/proj_id_1/assign \
     }'
 ```
 
-### 12. 列出最新分配记录
+### 13. 列出最新分配记录
 
 此接口用于按时间增量获取项目成员分配记录（assignment）。可用于同步第三方系统或客户端仅拉取自上次时间之后的新分配数据。
 
